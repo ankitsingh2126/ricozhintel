@@ -61,6 +61,17 @@ const kpiSchema = new mongoose.Schema(
       enum: ['monthly', 'quarterly', 'yearly'],
       default: 'monthly',
     },
+    owner: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: [120, 'Owner must be at most 120 characters'],
+    },
+    statusRule: {
+      type: String,
+      enum: ['higher_is_better', 'lower_is_better'],
+      default: 'higher_is_better',
+    },
   },
   {
     timestamps: true,

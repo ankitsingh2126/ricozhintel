@@ -1,17 +1,41 @@
-﻿// KPIs list page with status filter + search.
+﻿// KPIs page with full CRUD:
+// - List with filters (status, period, search)
+// - Add / Edit via a shared modal form
+// - Delete with confirm dialog
+// - Toasts on success and failure
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Loader from '../components/common/Loader.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import Modal from '../components/common/Modal.jsx';
+import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import StatusBadge from '../components/common/StatusBadge.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
-import { fetchKpis } from '../services/kpiService.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { useFetch } from '../hooks/useFetch.js';
+import { apiClient } from '../services/apiClient.js';
+import { fetchKpis } from '../services/kpiService.js';
+import { fetchDepartments } from '../services/departmentService.js';
 import { formatNumber } from '../utils/formatters.js';
+
+// ---- constants ----------------------------------------------------------
+
+const EMPTY_FORM = {
+  name: '',
+  code: '',
+  department: '',
+  unit: '%',
+  target: '',
+  currentValue: '0',
+  status: 'on_track',
+  period: 'monthly',
+  owner: '',
+  statusRule: 'higher_is_better',
+};
 
 const STATUS_OPTIONS = [
   { value: '',          label: 'All statuses' },
@@ -21,23 +45,166 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
 ];
 
+const PERIOD_OPTIONS = [
+  { value: '',          label: 'All periods' },
+  { value: 'monthly',   label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly',    label: 'Yearly' },
+];
+
+const STATUS_FORM_OPTIONS = [
+  { value: 'on_track',  label: 'On Track' },
+  { value: 'at_risk',   label: 'At Risk' },
+  { value: 'off_track', label: 'Off Track' },
+  { value: 'completed', label: 'Completed' },
+];
+
+const PERIOD_FORM_OPTIONS = [
+  { value: 'monthly',   label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly',    label: 'Yearly' },
+];
+
+const STATUS_RULE_OPTIONS = [
+  { value: 'higher_is_better', label: 'Higher is better (e.g. revenue)' },
+  { value: 'lower_is_better',  label: 'Lower is better (e.g. response time)' },
+];
+
+const formatError = (err) => {
+  if (!err) return 'Something went wrong';
+  if (err.details && Array.isArray(err.details) && err.details.length > 0) {
+    return err.details.map((d) => `${d.field}: ${d.message}`).join(' · ');
+  }
+  return err.message || 'Something went wrong';
+};
+
+// ---- component ----------------------------------------------------------
+
 export default function KpisPage() {
+  const { showSuccess, showError } = useToast();
+
   const [status, setStatus] = useState('');
+  const [period, setPeriod] = useState('');
   const [search, setSearch] = useState('');
 
   const fetcher = useCallback(
-    () => fetchKpis({ status: status || undefined, search: search || undefined, limit: 100 }),
-    [status, search]
+    () =>
+      fetchKpis({
+        status: status || undefined,
+        period: period || undefined,
+        search: search || undefined,
+        limit: 100,
+      }),
+    [status, period, search]
   );
-  const { data, loading, error, refetch } = useFetch(fetcher, [status, search]);
+  const { data, loading, error, refetch } = useFetch(fetcher, [status, period, search]);
+
+  // Departments for the form's dropdown
+  const deptFetcher = useCallback(() => fetchDepartments({ limit: 100 }), []);
+  const departments = useFetch(deptFetcher, []);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (kpi) => {
+    setEditing(kpi);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    if (submitting) return;
+    setFormOpen(false);
+    setEditing(null);
+  };
+
+  const openConfirmDelete = (kpi) => {
+    setDeleteTarget(kpi);
+    setConfirmOpen(true);
+  };
+
+  const closeConfirmDelete = () => {
+    if (submitting) return;
+    setConfirmOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const handleSubmit = async (formValues) => {
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: formValues.name.trim(),
+        code: formValues.code.trim().toUpperCase(),
+        department: formValues.department,
+        unit: formValues.unit.trim() || '%',
+        target: Number(formValues.target),
+        currentValue: Number(formValues.currentValue) || 0,
+        status: formValues.status,
+        period: formValues.period,
+        owner: formValues.owner.trim(),
+        statusRule: formValues.statusRule,
+      };
+
+      if (editing) {
+        await apiClient.patch(`/kpis/${editing._id}`, payload);
+        showSuccess(`KPI "${payload.name}" updated`);
+      } else {
+        await apiClient.post('/kpis', payload);
+        showSuccess(`KPI "${payload.name}" created`);
+      }
+
+      setFormOpen(false);
+      setEditing(null);
+      refetch();
+    } catch (err) {
+      showError(formatError(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSubmitting(true);
+    try {
+      await apiClient.delete(`/kpis/${deleteTarget._id}`);
+      showSuccess(`KPI "${deleteTarget.name}" deleted`);
+      setConfirmOpen(false);
+      setDeleteTarget(null);
+      refetch();
+    } catch (err) {
+      showError(formatError(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title="KPIs"
         description="Key performance indicators across all departments."
+        action={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
+                       text-white text-sm font-medium hover:bg-brand-700"
+          >
+            <Plus size={16} />
+            Add KPI
+          </button>
+        }
       />
 
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -60,6 +227,16 @@ export default function KpisPage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        <select
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-white
+                     focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+        >
+          {PERIOD_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
 
       {loading && <Loader label="Loading KPIs…" />}
@@ -69,29 +246,32 @@ export default function KpisPage() {
       {!loading && !error && data && data.items.length === 0 && (
         <EmptyState
           title="No KPIs found"
-          description="Try a different filter, or run the server's seed script."
+          description="Try a different filter, or create a new KPI."
         />
       )}
 
       {!loading && !error && data && data.items.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
+            <table className="w-full text-sm min-w-[900px]">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">Name</th>
                   <th className="text-left px-4 py-3 font-medium">Department</th>
+                  <th className="text-left px-4 py-3 font-medium">Period</th>
                   <th className="text-left px-4 py-3 font-medium">Target</th>
                   <th className="text-left px-4 py-3 font-medium">Current</th>
                   <th className="text-left px-4 py-3 font-medium w-40">Progress</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-right px-4 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {data.items.map((kpi) => {
-                  const progress = kpi.target > 0
-                    ? Math.min(150, Math.round((kpi.currentValue / kpi.target) * 100))
-                    : 0;
+                  const progress =
+                    kpi.achievement !== null && kpi.achievement !== undefined
+                      ? Math.min(150, kpi.achievement)
+                      : 0;
                   return (
                     <tr key={kpi._id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
@@ -103,15 +283,42 @@ export default function KpisPage() {
                       <td className="px-4 py-3 text-slate-600">
                         {kpi.department?.name || '—'}
                       </td>
+                      <td className="px-4 py-3 text-slate-600 capitalize">{kpi.period}</td>
                       <td className="px-4 py-3">{formatNumber(kpi.target)} {kpi.unit}</td>
                       <td className="px-4 py-3">{formatNumber(kpi.currentValue)} {kpi.unit}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1"><ProgressBar value={progress} status={kpi.status} /></div>
-                          <span className="text-xs text-slate-500 w-10 text-right">{progress}%</span>
+                          <div className="flex-1">
+                            <ProgressBar value={progress} status={kpi.status} />
+                          </div>
+                          <span className="text-xs text-slate-500 w-10 text-right">
+                            {kpi.achievement != null ? `${kpi.achievement}%` : '—'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={kpi.status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(kpi)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
+                                       text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-md"
+                          >
+                            <Pencil size={12} />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openConfirmDelete(kpi)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
+                                       text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md"
+                          >
+                            <Trash2 size={12} />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -120,6 +327,287 @@ export default function KpisPage() {
           </div>
         </div>
       )}
+
+      <KpiFormModal
+        isOpen={formOpen}
+        onClose={closeForm}
+        onSubmit={handleSubmit}
+        initialValues={
+          editing
+            ? {
+                name: editing.name || '',
+                code: editing.code || '',
+                department: editing.department?._id || editing.department || '',
+                unit: editing.unit || '%',
+                target: String(editing.target ?? ''),
+                currentValue: String(editing.currentValue ?? '0'),
+                status: editing.status || 'on_track',
+                period: editing.period || 'monthly',
+                owner: editing.owner || '',
+                statusRule: editing.statusRule || 'higher_is_better',
+              }
+            : EMPTY_FORM
+        }
+        mode={editing ? 'edit' : 'create'}
+        submitting={submitting}
+        departments={departments.data?.items || []}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onCancel={closeConfirmDelete}
+        onConfirm={handleDelete}
+        title="Delete KPI?"
+        message={
+          deleteTarget
+            ? `"${deleteTarget.name}" will be permanently deleted. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        danger
+        busy={submitting}
+      />
+    </div>
+  );
+}
+
+// ---- form inside the modal ---------------------------------------------
+
+function KpiFormModal({ isOpen, onClose, onSubmit, initialValues, mode, submitting, departments }) {
+  const [values, setValues] = useState(initialValues);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (isOpen) {
+      setValues(initialValues);
+      setErrors({});
+    }
+  }, [isOpen, initialValues]);
+
+  const setField = (field, value) => {
+    setValues((v) => ({ ...v, [field]: value }));
+    if (errors[field]) {
+      setErrors((e) => ({ ...e, [field]: undefined }));
+    }
+  };
+
+  const validate = () => {
+    const next = {};
+
+    if (!values.name.trim() || values.name.trim().length < 2) {
+      next.name = 'Name must be at least 2 characters';
+    }
+
+    const code = values.code.trim();
+    if (!code || code.length < 2 || code.length > 20) {
+      next.code = 'Code must be 2-20 characters';
+    } else if (!/^[A-Za-z0-9_-]+$/.test(code)) {
+      next.code = 'Code may only contain letters, numbers, hyphens, underscores';
+    }
+
+    if (!values.department) {
+      next.department = 'Department is required';
+    }
+
+    const target = Number(values.target);
+    if (values.target === '' || Number.isNaN(target) || target < 0) {
+      next.target = 'Target must be a non-negative number';
+    }
+
+    const currentValue = Number(values.currentValue);
+    if (values.currentValue !== '' && (Number.isNaN(currentValue) || currentValue < 0)) {
+      next.currentValue = 'Current value must be a non-negative number';
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    onSubmit(values);
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={submitting ? undefined : onClose}
+      title={mode === 'edit' ? 'Edit KPI' : 'Add KPI'}
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-4 py-2 rounded-md border border-slate-300 text-sm font-medium
+                       text-slate-700 bg-white hover:bg-slate-50
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="kpi-form"
+            disabled={submitting}
+            className="px-4 py-2 rounded-md bg-brand-600 text-white text-sm font-medium
+                       hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create'}
+          </button>
+        </div>
+      }
+    >
+      <form id="kpi-form" onSubmit={handleSubmit} className="space-y-4">
+        <Field
+          label="Name"
+          required
+          value={values.name}
+          onChange={(v) => setField('name', v)}
+          error={errors.name}
+          placeholder="e.g. Monthly Revenue"
+        />
+        <Field
+          label="Code"
+          required
+          value={values.code}
+          onChange={(v) => setField('code', v.toUpperCase())}
+          error={errors.code}
+          placeholder="e.g. SAL-REV"
+          maxLength={20}
+        />
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Department <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={values.department}
+            onChange={(e) => setField('department', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md text-sm bg-white
+              focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+              ${errors.department ? 'border-red-300' : 'border-slate-300'}`}
+          >
+            <option value="">— Select a department —</option>
+            {departments.map((d) => (
+              <option key={d._id} value={d._id}>{d.name}</option>
+            ))}
+          </select>
+          {errors.department && <p className="mt-1 text-xs text-red-600">{errors.department}</p>}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field
+            label="Target"
+            required
+            value={values.target}
+            onChange={(v) => setField('target', v)}
+            error={errors.target}
+            placeholder="e.g. 500000"
+            type="number"
+          />
+          <Field
+            label="Current Value"
+            value={values.currentValue}
+            onChange={(v) => setField('currentValue', v)}
+            error={errors.currentValue}
+            placeholder="e.g. 420000"
+            type="number"
+          />
+          <Field
+            label="Unit"
+            value={values.unit}
+            onChange={(v) => setField('unit', v)}
+            placeholder="e.g. USD, %, count"
+            maxLength={10}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <SelectField
+            label="Status"
+            value={values.status}
+            onChange={(v) => setField('status', v)}
+            options={STATUS_FORM_OPTIONS}
+          />
+          <SelectField
+            label="Period"
+            value={values.period}
+            onChange={(v) => setField('period', v)}
+            options={PERIOD_FORM_OPTIONS}
+          />
+        </div>
+
+        <Field
+          label="Owner"
+          value={values.owner}
+          onChange={(v) => setField('owner', v)}
+          placeholder="e.g. Alice Chen (optional)"
+          maxLength={120}
+        />
+
+        <SelectField
+          label="Achievement Rule"
+          value={values.statusRule}
+          onChange={(v) => setField('statusRule', v)}
+          options={STATUS_RULE_OPTIONS}
+        />
+      </form>
+    </Modal>
+  );
+}
+
+// ---- small reusable fields ---------------------------------------------
+
+function Field({ label, required, value, onChange, error, placeholder, textarea, maxLength, type = 'text' }) {
+  const inputClasses = `w-full px-3 py-2 border rounded-md text-sm
+    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+    ${error ? 'border-red-300' : 'border-slate-300'}`;
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      {textarea ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className={inputClasses}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          className={inputClasses}
+        />
+      )}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options, error }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full px-3 py-2 border rounded-md text-sm bg-white
+          focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+          ${error ? 'border-red-300' : 'border-slate-300'}`}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

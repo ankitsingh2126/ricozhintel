@@ -46,10 +46,10 @@ export const createApp = () => {
     })
   );
 
-  // 6. API routes
-  app.use('/api/v1', apiRoutes);
+  // 6. API routes — mounted at /api so both /api/v1/* and /api/health work.
+  app.use('/api', apiRoutes);
 
-  // 7. 404 handler
+  // 7. 404 handler — runs if no route matched above
   app.use(notFound);
 
   // 8. Error handler — MUST be last

@@ -4,26 +4,35 @@
 import { Kpi } from '../models/Kpi.js';
 import { Department } from '../models/Department.js';
 import { ApiError } from '../utils/ApiError.js';
+import { withAchievement } from '../utils/achievement.js';
 
-// Compute a progress percentage for a single KPI.
-// Guard against divide-by-zero (target = 0 shouldn't happen, but be safe).
-const computeProgress = (kpi) => {
-  if (!kpi.target) return 0;
-  return Math.round((kpi.currentValue / kpi.target) * 100);
+// Wrap a KPI with a computed `achievement` field.
+const decorate = (kpi) => withAchievement(kpi);
+const decorateList = (kpis) => kpis.map(decorate);
+
+// Translate duplicate-key errors from Mongo into a clean ApiError.
+const handleDuplicate = (err) => {
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern || {})[0] || 'field';
+    throw ApiError.conflict(`KPI ${field} already exists`);
+  }
+  throw err;
 };
 
-// List with filters + pagination.
+// ---- read ---------------------------------------------------------------
+
 export const listKpis = async ({
   department,
   status,
+  period,
   search,
   page = 1,
   limit = 20,
 } = {}) => {
   const query = {};
-
   if (department) query.department = department;
   if (status) query.status = status;
+  if (period) query.period = period;
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -43,21 +52,21 @@ export const listKpis = async ({
   ]);
 
   return {
-    items,
+    items: decorateList(items),
     meta: { page, limit, total, pages: Math.ceil(total / limit) },
   };
 };
 
-// Get one by id, populated.
 export const getKpiById = async (id) => {
   const kpi = await Kpi.findById(id).populate('department', 'name code');
   if (!kpi) {
     throw ApiError.notFound('KPI not found');
   }
-  return kpi;
+  return decorate(kpi);
 };
 
-// Create. Validates that the referenced department actually exists.
+// ---- write --------------------------------------------------------------
+
 export const createKpi = async (payload) => {
   const dept = await Department.findById(payload.department);
   if (!dept) {
@@ -66,17 +75,13 @@ export const createKpi = async (payload) => {
 
   try {
     const kpi = await Kpi.create(payload);
-    return await kpi.populate('department', 'name code');
+    await kpi.populate('department', 'name code');
+    return decorate(kpi);
   } catch (err) {
-    if (err.code === 11000) {
-      const field = Object.keys(err.keyPattern || {})[0] || 'field';
-      throw ApiError.conflict(`KPI ${field} already exists`);
-    }
-    throw err;
+    handleDuplicate(err);
   }
 };
 
-// Update. If department is being changed, verify the new one exists.
 export const updateKpi = async (id, payload) => {
   if (payload.department) {
     const dept = await Department.findById(payload.department);
@@ -94,17 +99,12 @@ export const updateKpi = async (id, payload) => {
     if (!kpi) {
       throw ApiError.notFound('KPI not found');
     }
-    return kpi;
+    return decorate(kpi);
   } catch (err) {
-    if (err.code === 11000) {
-      const field = Object.keys(err.keyPattern || {})[0] || 'field';
-      throw ApiError.conflict(`KPI ${field} already exists`);
-    }
-    throw err;
+    handleDuplicate(err);
   }
 };
 
-// Delete.
 export const deleteKpi = async (id) => {
   const kpi = await Kpi.findByIdAndDelete(id);
   if (!kpi) {
@@ -113,14 +113,13 @@ export const deleteKpi = async (id) => {
   return kpi;
 };
 
-// Summary for the dashboard KPI cards.
-// Returns counts by status + average progress across all KPIs.
+// ---- summary ------------------------------------------------------------
+
+// Global summary for the top KPI cards on the dashboard.
 export const getKpiSummary = async () => {
   const [total, byStatus, progressAgg] = await Promise.all([
     Kpi.countDocuments(),
-    Kpi.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]),
+    Kpi.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     Kpi.aggregate([
       {
         $group: {
@@ -130,7 +129,7 @@ export const getKpiSummary = async () => {
               $cond: [
                 { $gt: ['$target', 0] },
                 { $multiply: [{ $divide: ['$currentValue', '$target'] }, 100] },
-                0,
+                null,
               ],
             },
           },
@@ -139,26 +138,62 @@ export const getKpiSummary = async () => {
     ]),
   ]);
 
-  // Flatten status counts into a simple object.
-  const statusCounts = {
-    on_track: 0,
-    at_risk: 0,
-    off_track: 0,
-    completed: 0,
-  };
+  const statusCounts = { on_track: 0, at_risk: 0, off_track: 0, completed: 0 };
   byStatus.forEach((row) => {
-    if (statusCounts[row._id] !== undefined) {
-      statusCounts[row._id] = row.count;
-    }
+    if (statusCounts[row._id] !== undefined) statusCounts[row._id] = row.count;
   });
 
   const avgProgress = progressAgg[0]?.avgProgress
     ? Math.round(progressAgg[0].avgProgress)
     : 0;
 
-  return {
-    total,
-    byStatus: statusCounts,
-    avgProgress,
-  };
+  return { total, byStatus: statusCounts, avgProgress };
+};
+
+// Department-wise summary. One row per department that has KPIs.
+// Note: summing targets/actuals is only meaningful within the same unit.
+// The frontend must group by unit before rendering any chart.
+export const getSummaryByDepartment = async () => {
+  const rows = await Kpi.aggregate([
+    {
+      $group: {
+        _id: '$department',
+        total: { $sum: 1 },
+        on_track: { $sum: { $cond: [{ $eq: ['$status', 'on_track'] }, 1, 0] } },
+        at_risk: { $sum: { $cond: [{ $eq: ['$status', 'at_risk'] }, 1, 0] } },
+        off_track: { $sum: { $cond: [{ $eq: ['$status', 'off_track'] }, 1, 0] } },
+        completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+        totalTarget: { $sum: '$target' },
+        totalActual: { $sum: '$currentValue' },
+      },
+    },
+  ]);
+
+  const deptIds = rows.map((r) => r._id);
+  const departments = await Department.find({ _id: { $in: deptIds } }).select('name code');
+  const deptMap = new Map(departments.map((d) => [String(d._id), d]));
+
+  return rows
+    .map((r) => {
+      const dept = deptMap.get(String(r._id));
+      const avgAchievement =
+        r.totalTarget > 0 ? Math.round((r.totalActual / r.totalTarget) * 100) : null;
+
+      return {
+        department: dept
+          ? { _id: dept._id, name: dept.name, code: dept.code }
+          : { _id: r._id, name: 'Unknown', code: '—' },
+        total: r.total,
+        byStatus: {
+          on_track: r.on_track,
+          at_risk: r.at_risk,
+          off_track: r.off_track,
+          completed: r.completed,
+        },
+        totalTarget: r.totalTarget,
+        totalActual: r.totalActual,
+        avgAchievement,
+      };
+    })
+    .sort((a, b) => a.department.name.localeCompare(b.department.name));
 };

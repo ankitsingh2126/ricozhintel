@@ -6,11 +6,12 @@ import { sendSuccess } from '../utils/apiResponse.js';
 // GET /api/v1/kpis
 export const getAllKpis = async (req, res, next) => {
   try {
-    const { department, status, search, page, limit } = req.query;
+    const { department, status, period, search, page, limit } = req.query;
 
     const { items, meta } = await kpiService.listKpis({
       department,
       status,
+      period,
       search,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
@@ -22,11 +23,21 @@ export const getAllKpis = async (req, res, next) => {
   }
 };
 
-// GET /api/v1/kpis/summary  (must be registered before /:id)
+// GET /api/v1/kpis/summary
 export const getSummary = async (req, res, next) => {
   try {
     const summary = await kpiService.getKpiSummary();
     return sendSuccess(res, summary);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/v1/kpis/summary/by-department
+export const getSummaryByDepartment = async (req, res, next) => {
+  try {
+    const rows = await kpiService.getSummaryByDepartment();
+    return sendSuccess(res, rows);
   } catch (err) {
     next(err);
   }
@@ -52,7 +63,7 @@ export const createKpi = async (req, res, next) => {
   }
 };
 
-// PATCH /api/v1/kpis/:id
+// PATCH or PUT /api/v1/kpis/:id
 export const updateKpi = async (req, res, next) => {
   try {
     const kpi = await kpiService.updateKpi(req.params.id, req.body);

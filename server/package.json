@@ -8,7 +8,8 @@
   "scripts": {
   "start": "node server.js",
   "dev": "nodemon server.js",
-  "seed": "node src/seed/seedData.js"
+  "seed": "node src/seed/seedData.js",
+  "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +25,12 @@
     "morgan": "1.12.1"
   },
   "devDependencies": {
-    "nodemon": "3.1.9"
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
+    "nodemon": "3.1.9",
+    "supertest": "^7.3.1"
+  },
+  "allowScripts": {
+    "mongodb-memory-server@11.3.0": true
   }
 }
