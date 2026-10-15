@@ -1,4 +1,4 @@
-﻿// Reusable Quick Value Update Modal.
+// Reusable Quick Value Update Modal.
 // Allows users to update just the currentValue (and optionally status) of a KPI
 // without going through the entire full-edit form.
 
@@ -92,10 +92,11 @@ export default function QuickValueModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="quick-current-value" className="block text-sm font-medium text-slate-700 mb-1">
             New Current Value ({kpi.unit}) <span className="text-red-500">*</span>
           </label>
           <input
+            id="quick-current-value"
             type="number"
             value={currentValue}
             onChange={(e) => {
@@ -112,10 +113,11 @@ export default function QuickValueModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="quick-status" className="block text-sm font-medium text-slate-700 mb-1">
             Status
           </label>
           <select
+            id="quick-status"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white

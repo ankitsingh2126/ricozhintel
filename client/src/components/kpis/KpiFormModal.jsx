@@ -140,13 +140,14 @@ export default function KpiFormModal({
             className="px-4 py-2 rounded-md bg-brand-600 text-white text-sm font-medium
                        hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create'}
+            {submitting ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create KPI'}
           </button>
         </div>
       }
     >
       <form id="kpi-form" onSubmit={handleSubmit} className="space-y-4">
         <Field
+          id="kpi-name"
           label="Name"
           required
           value={values.name}
@@ -155,6 +156,7 @@ export default function KpiFormModal({
           placeholder="e.g. Monthly Revenue"
         />
         <Field
+          id="kpi-code"
           label="Code"
           required
           value={values.code}
@@ -165,10 +167,11 @@ export default function KpiFormModal({
         />
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="kpi-department" className="block text-sm font-medium text-slate-700 mb-1">
             Department <span className="text-red-500">*</span>
           </label>
           <select
+            id="kpi-department"
             value={values.department}
             onChange={(e) => setField('department', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md text-sm bg-white
@@ -185,6 +188,7 @@ export default function KpiFormModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Field
+            id="kpi-target"
             label="Target"
             required
             value={values.target}
@@ -194,6 +198,7 @@ export default function KpiFormModal({
             type="number"
           />
           <Field
+            id="kpi-current-value"
             label="Current Value"
             value={values.currentValue}
             onChange={(v) => setField('currentValue', v)}
@@ -202,9 +207,11 @@ export default function KpiFormModal({
             type="number"
           />
           <Field
+            id="kpi-unit"
             label="Unit"
             value={values.unit}
             onChange={(v) => setField('unit', v)}
+            error={errors.unit}
             placeholder="e.g. USD, %, count"
             maxLength={10}
           />
@@ -212,12 +219,14 @@ export default function KpiFormModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SelectField
+            id="kpi-status"
             label="Status"
             value={values.status}
             onChange={(v) => setField('status', v)}
             options={STATUS_FORM_OPTIONS}
           />
           <SelectField
+            id="kpi-period"
             label="Period"
             value={values.period}
             onChange={(v) => setField('period', v)}
@@ -226,6 +235,7 @@ export default function KpiFormModal({
         </div>
 
         <Field
+          id="kpi-owner"
           label="Owner"
           value={values.owner}
           onChange={(v) => setField('owner', v)}
@@ -234,6 +244,7 @@ export default function KpiFormModal({
         />
 
         <SelectField
+          id="kpi-achievement-rule"
           label="Achievement Rule"
           value={values.statusRule}
           onChange={(v) => setField('statusRule', v)}
@@ -244,18 +255,20 @@ export default function KpiFormModal({
   );
 }
 
-function Field({ label, required, value, onChange, error, placeholder, textarea, maxLength, type = 'text' }) {
+function Field({ id, label, required, value, onChange, error, placeholder, textarea, maxLength, type = 'text' }) {
+  const inputId = id || `kpi-${label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
   const inputClasses = `w-full px-3 py-2 border rounded-md text-sm
     focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
     ${error ? 'border-red-300' : 'border-slate-300'}`;
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
+      <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {textarea ? (
         <textarea
+          id={inputId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -264,6 +277,7 @@ function Field({ label, required, value, onChange, error, placeholder, textarea,
         />
       ) : (
         <input
+          id={inputId}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -277,11 +291,13 @@ function Field({ label, required, value, onChange, error, placeholder, textarea,
   );
 }
 
-function SelectField({ label, value, onChange, options, error }) {
+function SelectField({ id, label, value, onChange, options, error }) {
+  const selectId = id || `kpi-select-${label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <label htmlFor={selectId} className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
       <select
+        id={selectId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={`w-full px-3 py-2 border rounded-md text-sm bg-white

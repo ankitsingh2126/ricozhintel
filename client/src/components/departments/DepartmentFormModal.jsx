@@ -1,4 +1,4 @@
-﻿// Reusable Department form modal.
+// Reusable Department form modal.
 // Used by the Departments page for create and edit flows.
 // Owns form state, client-side validation, and unsaved-changes guard.
 
@@ -106,13 +106,14 @@ export default function DepartmentFormModal({
             className="px-4 py-2 rounded-md bg-brand-600 text-white text-sm font-medium
                        hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create'}
+            {submitting ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create Department'}
           </button>
         </div>
       }
     >
       <form id="department-form" onSubmit={handleSubmit} className="space-y-4">
         <Field
+          id="dept-name"
           label="Name"
           required
           value={values.name}
@@ -122,6 +123,7 @@ export default function DepartmentFormModal({
           maxLength={80}
         />
         <Field
+          id="dept-code"
           label="Code"
           required
           value={values.code}
@@ -131,13 +133,15 @@ export default function DepartmentFormModal({
           maxLength={10}
         />
         <Field
-          label="Head"
+          id="dept-head"
+          label="Head of Department"
           value={values.head}
           onChange={(v) => setField('head', v)}
           placeholder="e.g. Alice Chen"
           maxLength={120}
         />
         <Field
+          id="dept-description"
           label="Description"
           value={values.description}
           onChange={(v) => setField('description', v)}
@@ -146,8 +150,9 @@ export default function DepartmentFormModal({
           maxLength={500}
         />
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+          <label htmlFor="dept-status" className="block text-sm font-medium text-slate-700 mb-1">Status</label>
           <select
+            id="dept-status"
             value={values.status}
             onChange={(e) => setField('status', e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white
@@ -162,18 +167,20 @@ export default function DepartmentFormModal({
   );
 }
 
-function Field({ label, required, value, onChange, error, placeholder, textarea, maxLength, type = 'text' }) {
+function Field({ id, label, required, value, onChange, error, placeholder, textarea, maxLength, type = 'text' }) {
+  const inputId = id || `dept-${label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
   const inputClasses = `w-full px-3 py-2 border rounded-md text-sm
     focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
     ${error ? 'border-red-300' : 'border-slate-300'}`;
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
+      <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {textarea ? (
         <textarea
+          id={inputId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -183,6 +190,7 @@ function Field({ label, required, value, onChange, error, placeholder, textarea,
         />
       ) : (
         <input
+          id={inputId}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}

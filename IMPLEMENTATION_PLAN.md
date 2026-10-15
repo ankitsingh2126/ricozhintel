@@ -69,8 +69,24 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
 
 ---
 
-## Milestone 6: Automated Frontend Testing & Production Rollout
-1. **Frontend Component Tests:**
-   - Configure Vitest + React Testing Library for automated UI tests.
-2. **Production Deployment:**
-   - Execute production deployment to Render and Vercel following `DEPLOYMENT.md`.
+## Milestone 6: Automated Frontend Testing & Verification (Completed)
+1. **Frontend Component & Integration Tests:**
+   - Configured Vitest + React Testing Library + JSDOM in `client/`.
+   - Setup polyfills for `window.matchMedia`, `ResizeObserver`, anchor click navigation, and `URL.createObjectURL`.
+   - Authored 37 automated frontend tests across 4 test suites (`auth.test.jsx`, `rbac.test.jsx`, `forms.test.jsx`, `dashboardAndCsv.test.jsx`).
+   - Enhanced modal accessibility (`htmlFor`/`id` linking) across `DepartmentFormModal`, `KpiFormModal`, and `QuickValueModal`.
+   - All 37 frontend tests passing in 11.5s.
+2. **Comprehensive Verification:**
+   - All 45 backend tests passing in 10.8s across 6 test suites.
+   - Frontend production build compiles cleanly in 4.13s with zero errors.
+
+---
+
+## Milestone 7: Production Rollout & Cloud Deployment (Next)
+1. **Cloud Service Setup:**
+   - MongoDB Atlas network & user configuration.
+   - Backend deployment on Render per `DEPLOYMENT.md`.
+   - Frontend deployment on Vercel per `DEPLOYMENT.md`.
+2. **Production Smoke Testing:**
+   - Verify health check endpoints (`/api/v1/health` and `/api/health`).
+   - Run end-to-end smoke verification on live domain.

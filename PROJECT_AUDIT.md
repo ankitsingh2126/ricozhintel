@@ -72,29 +72,35 @@ Statuses: `VERIFIED`, `PARTIALLY IMPLEMENTED`, `NOT IMPLEMENTED`, `BLOCKED`, `NO
 | **KPI Detail UI**| KPI details, progress indicator, department back-link, Edit/Delete modal triggers | **VERIFIED** | Value update, Edit, and Delete actions guarded for Admin. |
 | **Auth UI** | Login page with demo quick sign-in, protected route redirect | **VERIFIED** | Tested and confirmed in browser; redirects unauthenticated users to `/login`. |
 | **Testing** | Backend Jest + Supertest integration suite | **VERIFIED** | 45 passing tests across 6 suites against `mongodb-memory-server`. |
-| **Testing** | Frontend unit / component tests | **NOT IMPLEMENTED** | No frontend test runner configured yet in `client/package.json`. |
-| **DevOps / Deploy**| Production build compilation | **VERIFIED** | Verified with Vite: 0 errors in 2.63s. |
+| **Testing** | Frontend Vitest + React Testing Library suite | **VERIFIED** | 37 passing tests across 4 suites covering auth, RBAC guards, forms, and dashboard/CSV. |
+| **DevOps / Deploy**| Production build compilation | **VERIFIED** | Verified with Vite: 0 errors in 4.13s. |
 | **DevOps / Deploy**| Free-tier deployment guide & Mongo Atlas config | **VERIFIED** | Comprehensive guide documented in `DEPLOYMENT.md`. |
 
 ---
 
 ## 4. Current Test Results
 
-Ran test suite via `npm test` inside `server/`:
-- **Suites:** 6 passed, 6 total (`auth.test.js`, `department.test.js`, `kpi.validation.test.js`, `kpi.summary.test.js`, `csv.export.test.js`, `health.test.js`)
-- **Tests:** 45 passed, 45 total (100% passing)
-- **Execution Time:** ~10.5 seconds
+- **Backend Integration Test Suite (`npm test` in `server/`):**
+  - **Suites:** 6 passed, 6 total (`auth.test.js`, `department.test.js`, `kpi.validation.test.js`, `kpi.summary.test.js`, `csv.export.test.js`, `health.test.js`)
+  - **Tests:** 45 passed, 45 total (100% passing)
+  - **Execution Time:** ~10.8 seconds
+
+- **Frontend Component & Integration Test Suite (`npm test` in `client/`):**
+  - **Suites:** 4 passed, 4 total (`auth.test.jsx`, `rbac.test.jsx`, `forms.test.jsx`, `dashboardAndCsv.test.jsx`)
+  - **Tests:** 37 passed, 37 total (100% passing)
+  - **Execution Time:** ~11.5 seconds
+
+- **Frontend Production Build (`npm run build` in `client/`):**
+  - **Result:** Vite v8 production bundle compiled cleanly in 4.13s with zero errors.
 
 ---
 
 ## 5. Known Technical Debt, Vulnerabilities & Risks
 
-1. **Frontend Component Tests (Medium):** The frontend relies on manual verification and production build compilation; automated Vitest/RTL tests are not yet implemented.
-2. **Dev-dependency NPM audit warnings (Low):** `braces` (via nodemon) and `sprintf-js` (via jest) are present in dev dependencies only, zero impact on production runtime.
+1. **Dev-dependency NPM audit warnings (Low):** `braces` (via nodemon) and `sprintf-js` (via jest) are present in dev dependencies only, zero impact on production runtime.
 
 ---
 
 ## 6. Next Recommended Steps
-1. Perform browser manual check of viewer role UI controls (confirming mutating buttons are hidden for Viewer while CSV exports remain accessible).
-2. Configure frontend test runner (Vitest + React Testing Library).
-3. Proceed with production deployment to Render and Vercel per `DEPLOYMENT.md` upon explicit user approval.
+1. Proceed with production deployment to Render and Vercel per `DEPLOYMENT.md` upon explicit user approval.
+2. Execute production health check and smoke testing on live URLs.

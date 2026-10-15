@@ -1,8 +1,8 @@
 # PROJECT PROGRESS: Ricozhintel
 
 Last Updated: 2026-10-15
-State: Milestone 5 Complete (Authentication and Authorization Implemented & Verified)
-Latest Commit: b56a0ea ("feat: complete CSV export and reporting")
+State: Milestone 6 Complete (Frontend Testing and Verification Implemented & Passing)
+Latest Confirmed Git Commit: 6a3d025 ("feat: add authentication and role-based access")
 
 ---
 
@@ -51,6 +51,16 @@ Latest Commit: b56a0ea ("feat: complete CSV export and reporting")
   - Created `ProtectedRoute.jsx` route guard and updated `AppRoutes.jsx`.
   - Updated `Header.jsx` with dynamic user name, role pill (`Admin` / `Viewer`), and Logout button.
   - Added UI role guards: hiding create, edit, delete, and quick-value controls for `viewer` accounts across `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, and `KpiDetailPage`, while ensuring viewers retain read access, dashboard filters, and CSV exports.
+- [x] **Milestone 6 Frontend Testing and Verification:**
+  - Configured Vitest 5, JSDOM, React Testing Library, and `@testing-library/user-event` in `client/vite.config.js` and `client/package.json`.
+  - Created test environment setup in `client/src/test/setup.js` with DOM matchers, `window.matchMedia`, `ResizeObserver`, anchor click mocks, and `URL.createObjectURL` polyfills.
+  - Created shared test wrapper and auth mock utilities in `client/src/test/testUtils.jsx`.
+  - Authored and verified `client/src/test/auth.test.jsx` (12 tests covering login form, demo credentials, protected routes, and header logout).
+  - Authored and verified `client/src/test/rbac.test.jsx` (8 tests verifying Admin vs Viewer action controls across Departments, Department Detail, KPIs, and KPI Detail pages).
+  - Authored and verified `client/src/test/forms.test.jsx` (7 tests covering `DepartmentFormModal`, `KpiFormModal`, and `QuickValueModal` input validations, accessibility labels, and submit payloads).
+  - Authored and verified `client/src/test/dashboardAndCsv.test.jsx` (10 tests covering Dashboard cards, filter changes, filter reset, snapshot CSV downloads, and RFC 4180 CSV generation utility).
+  - Enhanced form accessibility (`htmlFor`/`id` linking) in `DepartmentFormModal`, `KpiFormModal`, and `QuickValueModal`.
+  - Total frontend tests: 37 tests across 4 test suites (100% passing).
 - [x] **Manual End-to-End Browser Testing (Confirmed by User):**
   - Department CRUD operations verified in browser UI.
   - KPI creation and form validations verified in browser UI.
@@ -58,25 +68,26 @@ Latest Commit: b56a0ea ("feat: complete CSV export and reporting")
   - Dashboard filters (Department, Period, Status) verified in browser UI.
   - CSV exports (KPI table and Dashboard snapshot) verified in browser UI.
   - Both Admin and Viewer demo logins manually confirmed working in browser UI after seed command.
-- [x] Verified frontend production build compiles without errors (2.63s).
-- [x] Verified automated backend tests pass (45/45 tests in 10.5s across 6 test suites).
+- [x] Verified frontend production build compiles without errors (dist bundle ready).
+- [x] Verified automated backend tests pass (45/45 tests in 10.8s across 6 test suites).
 
 ---
 
 ## Test & Build Ledger
 | Target | Command | Result | Notes |
 |---|---|---|---|
-| Server Tests | `npm test` | **PASS (45/45)** | 6 suites: health, auth/RBAC, kpi validation, department CRUD/integrity, kpi summary/aggregations, csv export (10.5s) |
-| Client Build | `npm run build` | **PASS** | Bundle compiled cleanly in `client/dist` (2.63s, 0 errors) |
+| Server Tests | `npm test` (in `server/`) | **PASS (45/45)** | 6 suites: health, auth/RBAC, kpi validation, department CRUD/integrity, kpi summary/aggregations, csv export (10.8s) |
+| Client Tests | `npm test` (in `client/`) | **PASS (37/37)** | 4 suites: auth, rbac, forms, dashboardAndCsv (11.5s) |
+| Client Build | `npm run build` (in `client/`) | **PASS** | Vite production bundle compiled cleanly in `client/dist` (4.13s, 0 errors) |
 | Local E2E Workflows | `node -e "..."` | **PASS** | Department CRUD, KPI CRUD, filtered summaries, quick value update, auth hashing verified on live MongoDB |
 | Browser Manual QA | Manual | **PASS** | Confirmed by user: Department/KPI CRUD, quick updates, filters, CSV downloads, Admin & Viewer logins |
 
 ---
 
 ## Remaining MVP Features & Priorities
-1. **[Priority 1 - Next] Browser Manual Verification of Viewer UI Controls:**
-   - Confirm in browser that logging in as Viewer hides the Add/Edit/Delete/Value buttons while keeping CSV exports and filters operational.
-2. **[Priority 2] Frontend Component Testing:**
-   - Configure Vitest + React Testing Library in `client/` for automated UI component testing.
-3. **[Priority 3] Production Deployment:**
-   - Execute production setup according to `DEPLOYMENT.md` upon explicit user approval.
+1. **[Priority 1 - Next] Production Deployment:**
+   - Deploy backend to Render (or Fly.io / Railway) per `DEPLOYMENT.md`.
+   - Deploy frontend to Vercel (or Netlify) per `DEPLOYMENT.md`.
+   - Verify cloud environment variables, CORS, and production health checks.
+2. **[Priority 2] Final Acceptance:**
+   - Execute smoke test against production URLs.
