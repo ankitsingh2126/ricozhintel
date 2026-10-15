@@ -1,19 +1,33 @@
 // Reusable modal dialog.
+//
 // - Renders into a fixed overlay above everything else
 // - Closes on Escape key and on overlay click
 // - Locks page scroll while open
-// - Keeps the child content in a centered, responsive card
+// - Keeps child content in a centered, responsive card
+//
+// Optional onBeforeClose: if provided, it is called before the modal closes.
+// If it returns false, the close is cancelled. Used for "unsaved changes"
+// guards on forms.
 
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export default function Modal({ isOpen, onClose, title, children, footer }) {
+export default function Modal({ isOpen, onClose, onBeforeClose, title, children, footer }) {
+  // Wraps any close action with the optional guard.
+  const requestClose = () => {
+    if (typeof onBeforeClose === 'function') {
+      const allowed = onBeforeClose();
+      if (allowed === false) return;
+    }
+    onClose?.();
+  };
+
   // Lock body scroll + listen for Escape while open
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') requestClose();
     };
     document.addEventListener('keydown', handleKey);
 
@@ -24,7 +38,8 @@ export default function Modal({ isOpen, onClose, title, children, footer }) {
       document.removeEventListener('keydown', handleKey);
       document.body.style.overflow = originalOverflow;
     };
-  }, [isOpen, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -37,7 +52,7 @@ export default function Modal({ isOpen, onClose, title, children, footer }) {
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-slate-900/60"
-        onClick={onClose}
+        onClick={requestClose}
         aria-hidden="true"
       />
 
@@ -48,7 +63,7 @@ export default function Modal({ isOpen, onClose, title, children, footer }) {
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="text-slate-400 hover:text-slate-700"
             aria-label="Close"
           >

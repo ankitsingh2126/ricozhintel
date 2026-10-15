@@ -1,10 +1,10 @@
-﻿// KPI service.
+// KPI service.
 // Business logic only. Controllers handle HTTP; this handles the data layer.
 
 import { Kpi } from '../models/Kpi.js';
 import { Department } from '../models/Department.js';
 import { ApiError } from '../utils/ApiError.js';
-import { withAchievement } from '../utils/achievement.js';
+import { withAchievement, calculateAchievement } from '../utils/achievement.js';
 
 // Wrap a KPI with a computed `achievement` field.
 const decorate = (kpi) => withAchievement(kpi);
@@ -151,8 +151,8 @@ export const getKpiSummary = async () => {
 };
 
 // Department-wise summary. One row per department that has KPIs.
-// Note: summing targets/actuals is only meaningful within the same unit.
-// The frontend must group by unit before rendering any chart.
+// Individual KPI achievements are computed per rule, and their average gives the
+// department's avgAchievement without incorrectly summing mismatched units (e.g. USD + % + count).
 export const getSummaryByDepartment = async () => {
   const rows = await Kpi.aggregate([
     {
@@ -165,6 +165,13 @@ export const getSummaryByDepartment = async () => {
         completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
         totalTarget: { $sum: '$target' },
         totalActual: { $sum: '$currentValue' },
+        kpis: {
+          $push: {
+            currentValue: '$currentValue',
+            target: '$target',
+            statusRule: '$statusRule',
+          },
+        },
       },
     },
   ]);
@@ -176,8 +183,18 @@ export const getSummaryByDepartment = async () => {
   return rows
     .map((r) => {
       const dept = deptMap.get(String(r._id));
+
+      // Calculate achievement for each KPI in the department
+      const validAchievements = (r.kpis || [])
+        .map((k) => calculateAchievement(k.currentValue, k.target, k.statusRule))
+        .filter((val) => val !== null && Number.isFinite(val));
+
       const avgAchievement =
-        r.totalTarget > 0 ? Math.round((r.totalActual / r.totalTarget) * 100) : null;
+        validAchievements.length > 0
+          ? Math.round(
+              validAchievements.reduce((sum, val) => sum + val, 0) / validAchievements.length
+            )
+          : null;
 
       return {
         department: dept

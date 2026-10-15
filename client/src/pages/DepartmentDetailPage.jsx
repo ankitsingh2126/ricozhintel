@@ -1,14 +1,17 @@
-﻿// Department detail: department info + its KPIs.
+// Department detail: department info + its KPIs.
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Loader from '../components/common/Loader.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import StatusBadge from '../components/common/StatusBadge.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
+import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
+import { useToast } from '../context/ToastContext.jsx';
+import { apiClient } from '../services/apiClient.js';
 import { fetchDepartmentById } from '../services/departmentService.js';
 import { fetchKpis } from '../services/kpiService.js';
 import { useFetch } from '../hooks/useFetch.js';
@@ -16,6 +19,10 @@ import { formatNumber } from '../utils/formatters.js';
 
 export default function DepartmentDetailPage() {
   const { id } = useParams();
+
+  const { showSuccess, showError } = useToast();
+  const [formOpen, setFormOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const deptFetcher = useCallback(() => fetchDepartmentById(id), [id]);
   const kpisFetcher = useCallback(() => fetchKpis({ department: id, limit: 100 }), [id]);
@@ -29,6 +36,37 @@ export default function DepartmentDetailPage() {
   const refetchAll = () => {
     dept.refetch();
     kpis.refetch();
+  };
+
+  const handleCreateKpi = async (formValues) => {
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: formValues.name.trim(),
+        code: formValues.code.trim().toUpperCase(),
+        department: id,
+        unit: formValues.unit.trim() || '%',
+        target: Number(formValues.target),
+        currentValue: Number(formValues.currentValue) || 0,
+        status: formValues.status,
+        period: formValues.period,
+        owner: formValues.owner.trim(),
+        statusRule: formValues.statusRule,
+      };
+
+      await apiClient.post('/kpis', payload);
+      showSuccess(`KPI "${payload.name}" created`);
+      setFormOpen(false);
+      kpis.refetch();
+    } catch (err) {
+      const message =
+        err.details && Array.isArray(err.details)
+          ? err.details.map((d) => `${d.field}: ${d.message}`).join(' · ')
+          : err.message || 'Failed to create KPI';
+      showError(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -45,6 +83,16 @@ export default function DepartmentDetailPage() {
           <PageHeader
             title={dept.data.name}
             description={dept.data.description || `Code: ${dept.data.code}`}
+            action={
+              <button
+                type="button"
+                onClick={() => setFormOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
+                           text-white text-sm font-medium hover:bg-brand-700"
+              >
+                <Plus size={16} /> Add KPI
+              </button>
+            }
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -63,10 +111,15 @@ export default function DepartmentDetailPage() {
           </div>
 
           <div>
-            <h3 className="font-medium text-slate-900 mb-3">KPIs in this department</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-slate-900">KPIs in this department</h3>
+            </div>
 
             {kpis.data && kpis.data.items.length === 0 && (
-              <EmptyState title="No KPIs yet" description="This department has no KPIs assigned." />
+              <EmptyState
+                title="No KPIs yet"
+                description="This department has no KPIs assigned. Click 'Add KPI' above to create one."
+              />
             )}
 
             {kpis.data && kpis.data.items.length > 0 && (
@@ -113,6 +166,18 @@ export default function DepartmentDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {dept.data && (
+        <KpiFormModal
+          isOpen={formOpen}
+          onClose={() => !submitting && setFormOpen(false)}
+          onSubmit={handleCreateKpi}
+          initialValues={{ ...EMPTY_KPI_FORM, department: id }}
+          mode="create"
+          submitting={submitting}
+          departments={[dept.data]}
+        />
       )}
     </div>
   );

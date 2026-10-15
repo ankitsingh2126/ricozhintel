@@ -1,6 +1,11 @@
 ﻿// KPI schema.
 // Each KPI belongs to one department (referenced by _id).
-// Fields are intentionally simple — target tracking and scorecards come later.
+//
+// Compound indexes cover the query patterns used by the API:
+//   { department, status }  — KPI list filtered by department + status
+//   { department, period }  — KPI list filtered by department + period
+// Prefix behavior means the single-field queries (by department only,
+// by status only, by period only) also use these indexes.
 
 import mongoose from 'mongoose';
 
@@ -26,7 +31,7 @@ const kpiSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Department',
       required: [true, 'Department is required'],
-      index: true, // fast filtering by department
+      index: true,
     },
     description: {
       type: String,
@@ -77,5 +82,9 @@ const kpiSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Compound indexes for the filter patterns used by kpiService.listKpis.
+kpiSchema.index({ department: 1, status: 1 });
+kpiSchema.index({ department: 1, period: 1 });
 
 export const Kpi = mongoose.model('Kpi', kpiSchema);

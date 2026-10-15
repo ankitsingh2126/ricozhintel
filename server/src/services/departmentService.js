@@ -1,8 +1,9 @@
-﻿// Department service.
+// Department service.
 // Pure business logic — no req/res objects here.
 // The controller calls these; the model talks to MongoDB.
 
 import { Department } from '../models/Department.js';
+import { Kpi } from '../models/Kpi.js';
 import { ApiError } from '../utils/ApiError.js';
 
 // List with optional search + pagination.
@@ -75,11 +76,20 @@ export const updateDepartment = async (id, payload) => {
   }
 };
 
-// Delete by id. Throws 404 if not found.
+// Delete by id. Throws 404 if not found, 400 if KPIs are still assigned.
 export const deleteDepartment = async (id) => {
-  const department = await Department.findByIdAndDelete(id);
+  const department = await Department.findById(id);
   if (!department) {
     throw ApiError.notFound('Department not found');
   }
+
+  const assignedKpisCount = await Kpi.countDocuments({ department: id });
+  if (assignedKpisCount > 0) {
+    throw ApiError.badRequest(
+      `Cannot delete department "${department.name}" because it has ${assignedKpisCount} assigned KPI(s). Reassign or delete the KPIs first.`
+    );
+  }
+
+  await Department.findByIdAndDelete(id);
   return department;
 };
