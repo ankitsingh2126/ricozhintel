@@ -1,13 +1,27 @@
-// Axios instance used by every service.
-// Reads the API base URL from Vite env (VITE_API_BASE_URL).
-// Adds a response interceptor so components get a consistent error shape.
+// Resolves the API base URL from Vite env (VITE_API_URL or VITE_API_BASE_URL),
+// defaulting to the production Render backend in production and localhost in development.
 
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+export const resolveApiBaseUrl = (
+  env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
+) => {
+  const configured = env?.VITE_API_URL || env?.VITE_API_BASE_URL;
+
+  if (configured && typeof configured === 'string' && configured.trim() !== '') {
+    const trimmed = configured.trim().replace(/\/+$/, '');
+    return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+  }
+
+  if (env?.PROD) {
+    return 'https://ricozhintel-api.onrender.com/api/v1';
+  }
+
+  return 'http://localhost:5000/api/v1';
+};
 
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: resolveApiBaseUrl(),
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });

@@ -80,7 +80,8 @@ This document provides step-by-step instructions for deploying Ricozhintel on fr
 3. **Configure Environment Variables in Vercel:**
    | Variable | Value | Notes |
    |---|---|---|
-   | `VITE_API_BASE_URL` | `https://your-service.onrender.com/api/v1` | URL of your deployed Render backend |
+   | `VITE_API_URL` | `https://ricozhintel-api.onrender.com/api/v1` | URL of your deployed Render backend (supports base domain or `/api/v1`) |
+   | `VITE_API_BASE_URL` | `https://ricozhintel-api.onrender.com/api/v1` | Backward-compatible alias for `VITE_API_URL` |
 4. **Single-Page Application (SPA) Routing Configuration:**
    - Preconfigured in `client/vercel.json`:
      ```json
@@ -154,8 +155,8 @@ Content-Type: application/json
 
 - [ ] Backend `/api/v1/health` returns `HTTP 200` with `db: "connected"` and `status: "ok"`.
 - [ ] Render environment variables include `JWT_SECRET` (≥32 chars), `NODE_ENV=production`, `MONGODB_URI`, `CLIENT_ORIGIN`.
-- [ ] Vercel environment variables include `VITE_API_BASE_URL` pointing to `https://<service-name>.onrender.com/api/v1`.
+- [ ] Vercel environment variables include `VITE_API_URL` (or `VITE_API_BASE_URL`) pointing to `https://ricozhintel-api.onrender.com/api/v1`.
 - [ ] CORS is configured with the exact Vercel frontend URL.
-- [ ] Initial production admin created via `/api/v1/auth/register` with a private, strong password.
+- [ ] Initial production admin created via `/api/v1/auth/bootstrap-admin` or CLI provisioning script with a private, strong password.
 - [ ] No `.env` credentials are committed in Git history.
 - [ ] Rate limiter permits ordinary usage (120 req/min per IP, with `trust proxy` enabled).
