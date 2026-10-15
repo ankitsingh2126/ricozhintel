@@ -94,11 +94,61 @@ export default function DashboardPage() {
     setStatus('');
   };
 
+  const { showSuccess, showError } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportDashboardSnapshot = () => {
+    setExporting(true);
+    try {
+      const rows = deptSummary.data || [];
+      if (rows.length === 0) {
+        showError('No department snapshot data to export for the selected filters.');
+        return;
+      }
+
+      const columns = [
+        { label: 'Department Name', key: (r) => r.department?.name || '—' },
+        { label: 'Department Code', key: (r) => r.department?.code || '—' },
+        { label: 'Total KPIs', key: 'total' },
+        { label: 'On Track', key: (r) => r.byStatus?.on_track ?? 0 },
+        { label: 'At Risk', key: (r) => r.byStatus?.at_risk ?? 0 },
+        { label: 'Off Track', key: (r) => r.byStatus?.off_track ?? 0 },
+        { label: 'Completed', key: (r) => r.byStatus?.completed ?? 0 },
+        {
+          label: 'Avg Achievement (%)',
+          key: (r) => (r.avgAchievement != null ? `${r.avgAchievement}%` : '—'),
+        },
+      ];
+
+      const csvContent = generateCsv(columns, rows);
+      const filename = getExportFilename('dashboard-snapshot');
+      downloadCsv(csvContent, filename);
+      showSuccess(`Exported ${rows.length} department summary row(s) to ${filename}`);
+    } catch (err) {
+      showError(err.message || 'Failed to export snapshot data');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="Executive Dashboard"
         description="Unified view of cross-functional business performance."
+        action={
+          <button
+            type="button"
+            onClick={handleExportDashboardSnapshot}
+            disabled={exporting || loading || !deptSummary.data || deptSummary.data.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-300
+                       bg-white text-slate-700 text-sm font-medium hover:bg-slate-50
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={15} />
+            {exporting ? 'Exporting…' : 'Export Snapshot CSV'}
+          </button>
+        }
       />
 
       {/* Filter Toolbar */}
