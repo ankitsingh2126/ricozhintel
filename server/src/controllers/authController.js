@@ -6,9 +6,32 @@ import { sendSuccess } from '../utils/apiResponse.js';
 // POST /api/v1/auth/register
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
-    const result = await authService.register({ name, email, password, role });
+    const { name, email, password } = req.body;
+    const result = await authService.register({ name, email, password });
     return sendSuccess(res, result, undefined, 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/v1/auth/bootstrap-admin
+export const bootstrapAdmin = async (req, res, next) => {
+  try {
+    const { name, email, password, bootstrapSecret } = req.body;
+    const result = await authService.bootstrapAdmin({ name, email, password, bootstrapSecret });
+    return sendSuccess(res, result, undefined, 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PATCH /api/v1/auth/users/:id/role
+export const updateUserRole = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    const user = await authService.updateUserRole(id, role);
+    return sendSuccess(res, user);
   } catch (err) {
     next(err);
   }

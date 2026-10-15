@@ -1,4 +1,4 @@
-﻿// Builds and configures the Express application.
+// Builds and configures the Express application.
 // server.js calls createApp() and starts the HTTP listener.
 
 import express from 'express';
@@ -15,13 +15,20 @@ import { errorHandler } from './middleware/errorHandler.js';
 export const createApp = () => {
   const app = express();
 
-  // 1. Security headers
+  // 1. Trust first reverse proxy (e.g. Render, Cloudflare, load balancers)
+  app.set('trust proxy', 1);
+
+  // 2. Security headers
   app.use(helmet());
 
-  // 2. CORS — only allow the configured frontend origin
+  // 3. CORS — allow configured frontend origin(s)
+  const allowedOrigins = env.clientOrigin?.includes(',')
+    ? env.clientOrigin.split(',').map((o) => o.trim())
+    : env.clientOrigin;
+
   app.use(
     cors({
-      origin: env.clientOrigin,
+      origin: allowedOrigins,
       credentials: true,
     })
   );
