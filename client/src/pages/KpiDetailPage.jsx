@@ -15,6 +15,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
 import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { apiClient } from '../services/apiClient.js';
 import { fetchDepartments } from '../services/departmentService.js';
 import { useFetch } from '../hooks/useFetch.js';
@@ -32,6 +33,7 @@ export default function KpiDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
+  const { isAdmin } = useAuth();
 
   // ---- data: KPI itself ------------------------------------------------
   const kpiFetcher = useCallback(async () => {
@@ -162,33 +164,37 @@ export default function KpiDetailPage() {
             action={
               <div className="flex items-center gap-2">
                 <StatusBadge status={data.status} />
-                <button
-                  type="button"
-                  onClick={() => setQuickValueOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                             text-brand-700 bg-brand-50 border border-brand-200 rounded-md
-                             hover:bg-brand-100"
-                >
-                  <Gauge size={14} /> Update Value
-                </button>
-                <button
-                  type="button"
-                  onClick={openEdit}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                             text-slate-700 bg-white border border-slate-300 rounded-md
-                             hover:bg-slate-50"
-                >
-                  <Pencil size={14} /> Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={openConfirmDelete}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
-                             text-red-700 bg-white border border-red-300 rounded-md
-                             hover:bg-red-50"
-                >
-                  <Trash2 size={14} /> Delete
-                </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setQuickValueOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+                                 text-brand-700 bg-brand-50 border border-brand-200 rounded-md
+                                 hover:bg-brand-100 cursor-pointer"
+                    >
+                      <Gauge size={14} /> Update Value
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openEdit}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+                                 text-slate-700 bg-white border border-slate-300 rounded-md
+                                 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openConfirmDelete}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+                                 text-red-700 bg-white border border-red-300 rounded-md
+                                 hover:bg-red-50 cursor-pointer"
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </>
+                )}
               </div>
             }
           />

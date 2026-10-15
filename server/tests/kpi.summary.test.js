@@ -7,8 +7,11 @@ import { createApp } from '../src/app.js';
 import { connectDB } from '../src/config/db.js';
 import { Department } from '../src/models/Department.js';
 import { Kpi } from '../src/models/Kpi.js';
+import { User } from '../src/models/User.js';
+import { getAdminAuthHeader } from './helpers/authHelper.js';
 
 let app;
+let authHeader;
 
 beforeAll(async () => {
   await connectDB();
@@ -20,7 +23,8 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await Promise.all([Department.deleteMany({}), Kpi.deleteMany({})]);
+  await Promise.all([Department.deleteMany({}), Kpi.deleteMany({}), User.deleteMany({})]);
+  authHeader = await getAdminAuthHeader();
 });
 
 describe('KPI Aggregation & Summary API', () => {
@@ -45,7 +49,9 @@ describe('KPI Aggregation & Summary API', () => {
       },
     ]);
 
-    const res = await request(app).get('/api/v1/kpis/summary');
+    const res = await request(app)
+      .get('/api/v1/kpis/summary')
+      .set(authHeader);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.total).toBe(2);
@@ -92,7 +98,9 @@ describe('KPI Aggregation & Summary API', () => {
       },
     ]);
 
-    const res = await request(app).get('/api/v1/kpis/summary/by-department');
+    const res = await request(app)
+      .get('/api/v1/kpis/summary/by-department')
+      .set(authHeader);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.length).toBe(2);
@@ -136,26 +144,32 @@ describe('KPI Aggregation & Summary API', () => {
     ]);
 
     // Filter by department
-    const deptRes = await request(app).get(`/api/v1/kpis/summary?department=${dept1._id}`);
+    const deptRes = await request(app)
+      .get(`/api/v1/kpis/summary?department=${dept1._id}`)
+      .set(authHeader);
     expect(deptRes.status).toBe(200);
     expect(deptRes.body.data.total).toBe(1);
     expect(deptRes.body.data.byStatus.on_track).toBe(1);
 
     // Filter by period
-    const periodRes = await request(app).get('/api/v1/kpis/summary?period=monthly');
+    const periodRes = await request(app)
+      .get('/api/v1/kpis/summary?period=monthly')
+      .set(authHeader);
     expect(periodRes.status).toBe(200);
     expect(periodRes.body.data.total).toBe(1);
     expect(periodRes.body.data.byStatus.at_risk).toBe(1);
 
     // Filter by status
-    const statusRes = await request(app).get('/api/v1/kpis/summary?status=on_track');
+    const statusRes = await request(app)
+      .get('/api/v1/kpis/summary?status=on_track')
+      .set(authHeader);
     expect(statusRes.status).toBe(200);
     expect(statusRes.body.data.total).toBe(1);
 
     // Filter by department in by-department summary
-    const deptSummaryRes = await request(app).get(
-      `/api/v1/kpis/summary/by-department?department=${dept1._id}`
-    );
+    const deptSummaryRes = await request(app)
+      .get(`/api/v1/kpis/summary/by-department?department=${dept1._id}`)
+      .set(authHeader);
     expect(deptSummaryRes.status).toBe(200);
     expect(deptSummaryRes.body.data.length).toBe(1);
     expect(deptSummaryRes.body.data[0].department.code).toBe('FIN');

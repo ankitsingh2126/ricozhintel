@@ -1,8 +1,8 @@
-﻿# PROJECT PROGRESS: Ricozhintel
+# PROJECT PROGRESS: Ricozhintel
 
 Last Updated: 2026-10-15
-State: Milestone 4 Complete (CSV Export and Reporting Implemented & Verified)
-Latest Commit: 9a1f84b ("wip: checkpoint CSV export progress")
+State: Milestone 5 Complete (Authentication and Authorization Implemented & Verified)
+Latest Commit: b56a0ea ("feat: complete CSV export and reporting")
 
 ---
 
@@ -17,7 +17,8 @@ Latest Commit: 9a1f84b ("wip: checkpoint CSV export progress")
   - Added `server/tests/kpi.summary.test.js` (3 tests covering `/summary` and `/summary/by-department` with department, status, and period filtering).
   - Preserved existing `health.test.js` and `kpi.validation.test.js`.
   - Added `server/tests/csv.export.test.js` (10 tests covering cell escaping, quote doubling, line-breaks, CSV generation, dashboard snapshot formatting, and timestamped filenames).
-  - Total test count: 31 tests across 5 test suites (100% passing).
+  - Added `server/tests/auth.test.js` (14 tests covering registration, login, token validation, user profile, and RBAC route guards).
+  - Total test count: 45 tests across 6 test suites (100% passing).
 - [x] Configured SPA redirect rewrites via `client/vercel.json`.
 - [x] Authored comprehensive documentation:
   - `PROJECT_AUDIT.md` (architecture, data flows, verified statuses, technical debt).
@@ -38,30 +39,43 @@ Latest Commit: 9a1f84b ("wip: checkpoint CSV export progress")
   - Built RFC 4180-compliant CSV generation and download utility in `client/src/utils/csvExport.js` (escaping commas, double quotes, newlines, UTF-8 BOM, temporary object URL lifecycle cleanup).
   - Added "Export CSV" to `client/src/pages/KpisPage.jsx` respecting active filters (search, status, period), with toast notifications, loading states, and empty result safeguards.
   - Added "Export Snapshot CSV" to `client/src/pages/DashboardPage.jsx` exporting department-level summary data matching the active dashboard scope.
+- [x] **Milestone 5 Authentication and Role-Based Authorization (RBAC):**
+  - Designed stateless JWT architecture with Bearer token authentication compatible with free-tier cloud deployment.
+  - Created Mongoose `User` model with salted and hashed passwords (`bcryptjs`), schema validations, unique emails, and password masking on serialization.
+  - Implemented JWT auth middleware (`authenticate`) and role guard (`authorize('admin')`).
+  - Added auth API routes (`POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`).
+  - Protected all Department and KPI backend routes with authentication; enforced admin-only privileges for mutating actions (`POST`, `PATCH`, `PUT`, `DELETE`).
+  - Updated seed script `server/src/seed/seedData.js` to seed demo Admin and demo Viewer accounts.
+  - Added frontend `AuthContext` with session persistence in `localStorage`, automatic token validation on mount, and Axios request interceptor.
+  - Created `LoginPage.jsx` with quick demo sign-in buttons for Admin and Viewer.
+  - Created `ProtectedRoute.jsx` route guard and updated `AppRoutes.jsx`.
+  - Updated `Header.jsx` with dynamic user name, role pill (`Admin` / `Viewer`), and Logout button.
+  - Added UI role guards: hiding create, edit, delete, and quick-value controls for `viewer` accounts across `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, and `KpiDetailPage`, while ensuring viewers retain read access, dashboard filters, and CSV exports.
 - [x] **Manual End-to-End Browser Testing (Confirmed by User):**
   - Department CRUD operations verified in browser UI.
   - KPI creation and form validations verified in browser UI.
   - Quick Value update dialog verified in browser UI.
   - Dashboard filters (Department, Period, Status) verified in browser UI.
-- [x] Verified frontend production build compiles without errors.
-- [x] Verified automated backend tests pass (31/31 tests in 5.4s).
-- [x] Verified live local MongoDB integration test.
+  - CSV exports (KPI table and Dashboard snapshot) verified in browser UI.
+  - Both Admin and Viewer demo logins manually confirmed working in browser UI after seed command.
+- [x] Verified frontend production build compiles without errors (2.63s).
+- [x] Verified automated backend tests pass (45/45 tests in 10.5s across 6 test suites).
 
 ---
 
 ## Test & Build Ledger
 | Target | Command | Result | Notes |
 |---|---|---|---|
-| Server Tests | `npm test` | **PASS (31/31)** | 5 suites: health, kpi validation, department CRUD/integrity, kpi summary/aggregations, csv export (5.4s) |
-| Client Build | `npm run build` | **PASS** | Bundle compiled cleanly in `client/dist` (3.62s, 0 errors) |
-| Local E2E Workflows | `node -e "..."` | **PASS** | Department CRUD, KPI CRUD, filtered summaries, quick value update verified on live MongoDB |
-| Browser Manual QA | Manual | **PASS** | Verified by user in browser: Department/KPI CRUD, quick value updates, dashboard filters |
+| Server Tests | `npm test` | **PASS (45/45)** | 6 suites: health, auth/RBAC, kpi validation, department CRUD/integrity, kpi summary/aggregations, csv export (10.5s) |
+| Client Build | `npm run build` | **PASS** | Bundle compiled cleanly in `client/dist` (2.63s, 0 errors) |
+| Local E2E Workflows | `node -e "..."` | **PASS** | Department CRUD, KPI CRUD, filtered summaries, quick value update, auth hashing verified on live MongoDB |
+| Browser Manual QA | Manual | **PASS** | Confirmed by user: Department/KPI CRUD, quick updates, filters, CSV downloads, Admin & Viewer logins |
 
 ---
 
 ## Remaining MVP Features & Priorities
-1. **[Priority 1 - Next] Browser Manual Validation of CSV Downloads:**
-   - Verify file download in browser on both Dashboard and KPIs pages.
+1. **[Priority 1 - Next] Browser Manual Verification of Viewer UI Controls:**
+   - Confirm in browser that logging in as Viewer hides the Add/Edit/Delete/Value buttons while keeping CSV exports and filters operational.
 2. **[Priority 2] Frontend Component Testing:**
    - Configure Vitest + React Testing Library in `client/` for automated UI component testing.
 3. **[Priority 3] Production Deployment:**

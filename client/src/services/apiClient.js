@@ -1,4 +1,4 @@
-﻿// Axios instance used by every service.
+// Axios instance used by every service.
 // Reads the API base URL from Vite env (VITE_API_BASE_URL).
 // Adds a response interceptor so components get a consistent error shape.
 
@@ -11,6 +11,18 @@ export const apiClient = axios.create({
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+// Request interceptor: attach Bearer token if present
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('ricozhintel_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Turn any backend error into a plain Error with a friendly message.
 apiClient.interceptors.response.use(

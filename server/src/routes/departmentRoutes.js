@@ -1,4 +1,4 @@
-﻿// Department routes.
+// Department routes.
 
 import { Router } from 'express';
 import * as departmentController from '../controllers/departmentController.js';
@@ -8,20 +8,24 @@ import {
   idParamRule,
 } from '../validators/departmentValidator.js';
 import { validateRequest } from '../middleware/validateRequest.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
+
+// All department endpoints require an authenticated user
+router.use(authenticate);
 
 router
   .route('/')
   .get(departmentController.getAllDepartments)
-  .post(createDepartmentRules, validateRequest, departmentController.createDepartment);
+  .post(authorize('admin'), createDepartmentRules, validateRequest, departmentController.createDepartment);
 
 // Item routes — PUT is an alias for PATCH (partial update semantics).
 router
   .route('/:id')
   .get(idParamRule, validateRequest, departmentController.getDepartment)
-  .patch(updateDepartmentRules, validateRequest, departmentController.updateDepartment)
-  .put(updateDepartmentRules, validateRequest, departmentController.updateDepartment)
-  .delete(idParamRule, validateRequest, departmentController.deleteDepartment);
+  .patch(authorize('admin'), updateDepartmentRules, validateRequest, departmentController.updateDepartment)
+  .put(authorize('admin'), updateDepartmentRules, validateRequest, departmentController.updateDepartment)
+  .delete(authorize('admin'), idParamRule, validateRequest, departmentController.deleteDepartment);
 
 export default router;

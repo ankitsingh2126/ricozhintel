@@ -1,4 +1,4 @@
-﻿// Department CRUD and integrity tests.
+// Department CRUD and integrity tests.
 
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import request from 'supertest';
@@ -7,8 +7,11 @@ import { createApp } from '../src/app.js';
 import { connectDB } from '../src/config/db.js';
 import { Department } from '../src/models/Department.js';
 import { Kpi } from '../src/models/Kpi.js';
+import { User } from '../src/models/User.js';
+import { getAdminAuthHeader } from './helpers/authHelper.js';
 
 let app;
+let authHeader;
 
 beforeAll(async () => {
   await connectDB();
@@ -20,13 +23,15 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await Promise.all([Department.deleteMany({}), Kpi.deleteMany({})]);
+  await Promise.all([Department.deleteMany({}), Kpi.deleteMany({}), User.deleteMany({})]);
+  authHeader = await getAdminAuthHeader();
 });
 
 describe('Department API', () => {
   test('POST /api/v1/departments creates a new department', async () => {
     const res = await request(app)
       .post('/api/v1/departments')
+      .set(authHeader)
       .send({ name: 'Operations', code: 'OPS', head: 'John Ops' });
 
     expect(res.status).toBe(201);
@@ -38,6 +43,7 @@ describe('Department API', () => {
   test('POST /api/v1/departments rejects missing name/code with 400 VALIDATION_ERROR', async () => {
     const res = await request(app)
       .post('/api/v1/departments')
+      .set(authHeader)
       .send({ head: 'Only Head' });
 
     expect(res.status).toBe(400);
@@ -56,6 +62,7 @@ describe('Department API', () => {
 
     const res = await request(app)
       .post('/api/v1/departments')
+      .set(authHeader)
       .send({ name: 'Financial Planning', code: 'FIN' });
 
     expect(res.status).toBe(409);
@@ -70,7 +77,9 @@ describe('Department API', () => {
       { name: 'Marketing', code: 'MKT' },
     ]);
 
-    const res = await request(app).get('/api/v1/departments?search=eng');
+    const res = await request(app)
+      .get('/api/v1/departments?search=eng')
+      .set(authHeader);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.length).toBe(1);
@@ -83,6 +92,7 @@ describe('Department API', () => {
 
     const res = await request(app)
       .patch(`/api/v1/departments/${dept._id}`)
+      .set(authHeader)
       .send({ head: 'Sarah Connor', status: 'inactive' });
 
     expect(res.status).toBe(200);
@@ -95,6 +105,7 @@ describe('Department API', () => {
 
     const res = await request(app)
       .put(`/api/v1/departments/${dept._id}`)
+      .set(authHeader)
       .send({ head: 'Harvey Specter' });
 
     expect(res.status).toBe(200);
@@ -111,7 +122,9 @@ describe('Department API', () => {
       currentValue: 1.5,
     });
 
-    const res = await request(app).delete(`/api/v1/departments/${dept._id}`);
+    const res = await request(app)
+      .delete(`/api/v1/departments/${dept._id}`)
+      .set(authHeader);
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
     expect(res.body.error.message).toMatch(/assigned KPI/i);
@@ -124,7 +137,9 @@ describe('Department API', () => {
   test('DELETE /api/v1/departments/:id succeeds when no KPIs are assigned', async () => {
     const dept = await Department.create({ name: 'Temporary', code: 'TEMP' });
 
-    const res = await request(app).delete(`/api/v1/departments/${dept._id}`);
+    const res = await request(app)
+      .delete(`/api/v1/departments/${dept._id}`)
+      .set(authHeader);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
 

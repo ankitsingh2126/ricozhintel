@@ -1,4 +1,4 @@
-﻿// Seed script. Populates DEMO departments and KPIs.
+// Seed script. Populates DEMO departments and KPIs.
 //
 // IMPORTANT: this is development/demo data only.
 // Do NOT present these figures as real company metrics.
@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '../config/db.js';
 import { Department } from '../models/Department.js';
 import { Kpi } from '../models/Kpi.js';
+import { User } from '../models/User.js';
 
 const DEMO = '[DEMO]';
 
@@ -42,8 +43,24 @@ const run = async () => {
   try {
     await connectDB();
 
-    console.log('[seed] Clearing existing departments and kpis...');
-    await Promise.all([Department.deleteMany({}), Kpi.deleteMany({})]);
+    console.log('[seed] Clearing existing departments, kpis, and users...');
+    await Promise.all([Department.deleteMany({}), Kpi.deleteMany({}), User.deleteMany({})]);
+
+    console.log('[seed] Inserting DEMO users (admin and viewer)...');
+    await User.create([
+      {
+        name: `${DEMO} Admin User`,
+        email: 'admin@ricozhintel.internal',
+        password: 'Admin123!',
+        role: 'admin',
+      },
+      {
+        name: `${DEMO} Executive Viewer`,
+        email: 'viewer@ricozhintel.internal',
+        password: 'Viewer123!',
+        role: 'viewer',
+      },
+    ]);
 
     console.log(`[seed] Inserting ${departments.length} DEMO departments...`);
     const insertedDepts = await Department.insertMany(departments);

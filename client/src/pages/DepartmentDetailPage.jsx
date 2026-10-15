@@ -11,6 +11,7 @@ import StatusBadge from '../components/common/StatusBadge.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
 import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { apiClient } from '../services/apiClient.js';
 import { fetchDepartmentById } from '../services/departmentService.js';
 import { fetchKpis } from '../services/kpiService.js';
@@ -21,6 +22,7 @@ export default function DepartmentDetailPage() {
   const { id } = useParams();
 
   const { showSuccess, showError } = useToast();
+  const { isAdmin } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -84,14 +86,16 @@ export default function DepartmentDetailPage() {
             title={dept.data.name}
             description={dept.data.description || `Code: ${dept.data.code}`}
             action={
-              <button
-                type="button"
-                onClick={() => setFormOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
-                           text-white text-sm font-medium hover:bg-brand-700"
-              >
-                <Plus size={16} /> Add KPI
-              </button>
+              isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
+                             text-white text-sm font-medium hover:bg-brand-700 cursor-pointer"
+                >
+                  <Plus size={16} /> Add KPI
+                </button>
+              ) : null
             }
           />
 
@@ -118,7 +122,11 @@ export default function DepartmentDetailPage() {
             {kpis.data && kpis.data.items.length === 0 && (
               <EmptyState
                 title="No KPIs yet"
-                description="This department has no KPIs assigned. Click 'Add KPI' above to create one."
+                description={
+                  isAdmin
+                    ? "This department has no KPIs assigned. Click 'Add KPI' above to create one."
+                    : "This department currently has no KPIs assigned."
+                }
               />
             )}
 

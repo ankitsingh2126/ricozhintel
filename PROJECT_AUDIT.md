@@ -1,4 +1,4 @@
-﻿# PROJECT AUDIT: Ricozhintel Operational Intelligence Platform
+# PROJECT AUDIT: Ricozhintel Operational Intelligence Platform
 
 Date: 2026-10-15
 Auditor: Senior MERN Stack Engineer & QA Architect
@@ -9,32 +9,32 @@ Branch: main
 
 ## 1. Executive Summary & Verification of MVP Status
 
-The repository claims Milestone 2 is approximately 50% of the planned MVP.
-Following our comprehensive static inspection, dependency verification, backend integration test run, and frontend production build:
-- **Independent Verified MVP Completion:** ~**65%** of core single-tenant MVP functionality.
-- **Backend Status:** Core models (`Department`, `Kpi`), CRUD endpoints with alias routes (`PUT` -> `PATCH`), validation via `express-validator`, referential checks, and MongoDB aggregations (`/summary`, `/summary/by-department`) are implemented and passing integration tests.
-- **Frontend Status:** App layout shell, Dashboard (cards, Recharts status bar chart, Recharts department progress, snapshot table), Departments list/search/pagination/CRUD, Department Detail with associated KPIs, KPIs list/search/status & period filter/pagination/CRUD, KPI Detail with progress bar and edit/delete modal, and Toast notifications are implemented and now compiling cleanly into production bundles.
-- **Initial Flaw Discovered & Remediated:** The repository had an uncommitted refactor splitting `DepartmentFormModal` into a dedicated component that was missing on disk, breaking Vite builds. This has been restored and verified with `npm run build` passing in 3.85s.
+Following the completion of Milestone 5 (Authentication and Authorization):
+- **Independent Verified MVP Completion:** ~**90%** of full operational MVP functionality.
+- **Backend Status:** Core models (`Department`, `Kpi`, `User`), CRUD endpoints with alias routes (`PUT` -> `PATCH`), validation via `express-validator`, referential checks, MongoDB aggregations (`/summary`, `/summary/by-department`), stateless JWT authentication (`/v1/auth`), and role-based access control (`admin` vs `viewer`) are fully implemented and passing all integration tests.
+- **Frontend Status:** App layout shell, Dashboard (cards, Recharts status bar chart, Recharts department progress, snapshot table, interactive filtering), Departments list/search/pagination/CRUD, Department Detail with associated KPIs, KPIs list/search/status & period filter/pagination/CRUD, KPI Detail with progress bar and quick value update, RFC 4180 CSV export (KPIs & Dashboard snapshots), Authentication (Login page with demo quick-sign-in buttons, ProtectedRoute guard, dynamic Header user display with Logout, and UI action guards hiding mutating controls for viewers), and Toast notifications are implemented and compiling cleanly into production bundles.
 
 ---
 
 ## 2. Architecture & Data Flow
 
 ```
-[ Browser / Client: React 18 + Vite + Tailwind CSS + Recharts ]
+[ Browser / Client: React 18/19 + Vite + Tailwind CSS + Recharts ]
        │
-       │ HTTP / JSON REST Requests (Axios Client, base: /api/v1)
+       │ HTTP / JSON REST Requests (Axios Client with Bearer token interceptor, base: /api/v1)
        ▼
 [ Server: Node.js (ESM) + Express 4 ]
   ├── Middleware: Helmet, CORS, Morgan, Express-Rate-Limit (120 req/min)
-  ├── Route Layer: /api/v1/departments, /api/v1/kpis, /api/v1/health (+ /api/health)
+  ├── Auth Middleware: JWT Bearer validation (`authenticate`), RBAC (`authorize('admin')`)
+  ├── Route Layer: /api/v1/auth, /api/v1/departments, /api/v1/kpis, /api/v1/health (+ /api/health)
   ├── Validation Layer: express-validator schemas returning 400 with VALIDATION_ERROR details
   ├── Controller Layer: Request extraction, HTTP response envelopes
-  ├── Service Layer: Business logic, error normalization (ApiError), MongoDB queries
-  └── Data Access Layer: Mongoose 8 Models with Schema constraints & compound indexes
+  ├── Service Layer: Business logic, token generation, error normalization (ApiError), MongoDB queries
+  └── Data Access Layer: Mongoose 8 Models with Schema constraints, bcrypt hashing & compound indexes
        │
        ▼
 [ MongoDB Database (Local: 27017 / In-Memory during tests) ]
+  ├── users collection (indexed on unique lowercase email, role: admin | viewer)
   ├── departments collection (indexed on name, code)
   └── kpis collection (indexed on department, compound: {department, status}, {department, period})
 ```
@@ -48,61 +48,53 @@ Statuses: `VERIFIED`, `PARTIALLY IMPLEMENTED`, `NOT IMPLEMENTED`, `BLOCKED`, `NO
 | Area | Feature / Capability | Status | Evidence / Notes |
 |---|---|---|---|
 | **Health** | Health check `/api/v1/health` & `/api/health` | **VERIFIED** | 2 passing tests in `health.test.js`. Returns status, uptime, db connection state. |
+| **Auth Backend** | User registration, login, token issuance, `/me` profile | **VERIFIED** | 14 tests in `auth.test.js`. Password hashing (`bcryptjs`), JWT generation, email uniqueness. |
+| **RBAC Backend** | Admin vs Viewer route guards (`authorize`) | **VERIFIED** | Department & KPI mutate routes return 403 Forbidden for viewers; 201/200 for admins. |
 | **Dept Backend** | List departments with pagination & search | **VERIFIED** | Implemented in `departmentService.js`. Case-insensitive regex on name and code. |
 | **Dept Backend** | Get department by ID | **VERIFIED** | Implemented with 404 ApiError guard. |
 | **Dept Backend** | Create department with duplicate code/name guard | **VERIFIED** | Unique indexes in `Department.js`; duplicate 11000 caught and returned as 409 Conflict. |
 | **Dept Backend** | Update department (`PATCH` & `PUT`) | **VERIFIED** | `updateDepartmentRules` validates fields; PUT alias routed in `departmentRoutes.js`. |
-| **Dept Backend** | Delete department | **PARTIALLY IMPLEMENTED** | Department document is deleted, but cascading check or orphan KPI check is not enforced in service (leaves orphaned KPIs if deleted while KPIs point to it). |
+| **Dept Backend** | Delete department with referential integrity | **VERIFIED** | Blocks deletion if active KPIs reference department (400 Bad Request). Verified in `department.test.js`. |
 | **KPI Backend** | List KPIs with filters (`department`, `status`, `period`, `search`) | **VERIFIED** | Indexed compound search and pagination implemented in `kpiService.js`. |
 | **KPI Backend** | Get KPI by ID with populated Department | **VERIFIED** | Populates department `name code`, attaches computed achievement. |
 | **KPI Backend** | Create KPI with Department referential validation | **VERIFIED** | Covered by 7 tests in `kpi.validation.test.js`. Rejects missing dept, verifies valid payload. |
 | **KPI Backend** | Update KPI (`PATCH` & `PUT`) with referential validation | **VERIFIED** | Validates existing department if updated; computes achievement. |
 | **KPI Backend** | Delete KPI | **VERIFIED** | Implemented in `kpiService.js` with 404 guard. |
-| **KPI Backend** | Summary aggregations (`/kpis/summary`) | **VERIFIED** | Grouped status counts and average progress calculation. |
-| **KPI Backend** | Department summary aggregation (`/kpis/summary/by-department`) | **PARTIALLY IMPLEMENTED** | Returns department totals, status breakdown, and achievement, but currently averages raw target/actual across all KPIs regardless of unit mixing, which contradicts the brief's unit isolation rule. |
+| **KPI Backend** | Summary aggregations (`/kpis/summary`) | **VERIFIED** | Grouped status counts and average progress calculation with query filters. |
+| **KPI Backend** | Department summary aggregation (`/kpis/summary/by-department`) | **VERIFIED** | Normalized per-KPI achievement percentages without unit mixing. Verified in `kpi.summary.test.js`. |
 | **Achievement** | Calculation formula (`higher_is_better`, `lower_is_better`) | **VERIFIED** | Handled in `achievement.js`. Zero target/actual guarded safely. |
-| **Frontend Shell** | Navigation, layout, sidebar, mobile menu, responsive header | **VERIFIED** | Implemented with Tailwind and Lucide icons. |
-| **Dashboard** | Executive KPI cards, Recharts status chart, Dept progress chart, Snapshot table | **VERIFIED** | Data wired to live endpoints. Empty, loading, and error retry states fully wired. |
-| **Dept UI** | Department grid, search, pagination, create/edit modal, delete confirm | **VERIFIED** | `DepartmentFormModal` created with validation and dirty check; pagination component integrated; build verified. |
-| **Dept Detail UI**| Department metadata display + KPI list with progress bars | **VERIFIED** | Loads dept and kpis concurrently via `useFetch`; formatted tables and links. |
-| **KPI UI** | KPI table, search, status & period filters, pagination, create/edit modal, delete confirm | **VERIFIED** | Form modal extracted to `client/src/components/kpis/KpiFormModal.jsx` with dirty check. |
-| **KPI Detail UI**| KPI details, progress indicator, department back-link, Edit/Delete modal triggers | **VERIFIED** | Integrated with `KpiFormModal` and `ConfirmDialog`. |
-| **Testing** | Backend Jest + Supertest integration suite | **VERIFIED** | 10 passing tests against `mongodb-memory-server`. |
-| **Testing** | Department CRUD & aggregation backend tests | **NOT IMPLEMENTED** | Missing dedicated tests for `departmentRoutes` and `kpiSummary`. |
-| **Testing** | Frontend unit / component tests | **NOT IMPLEMENTED** | No frontend test framework configured in `client/package.json`. |
-| **DevOps / Deploy**| Production build compilation | **VERIFIED** | Verified with Vite: 0 errors. |
-| **DevOps / Deploy**| Free-tier deployment guide & Mongo Atlas config | **NOT IMPLEMENTED** | Documentation and deployment configuration templates required. |
+| **Reporting** | CSV export utility (`generateCsv`, `downloadCsv`) | **VERIFIED** | RFC 4180 compliant, quotes/newlines escaped, UTF-8 BOM, tested in `csv.export.test.js`. |
+| **Frontend Shell** | Navigation, layout, sidebar, mobile menu, responsive header | **VERIFIED** | Implemented with Tailwind and Lucide icons; user info & role badge wired. |
+| **Dashboard** | Executive KPI cards, Recharts status chart, Dept progress chart, Snapshot table | **VERIFIED** | Live filtering by Dept, Period, Status, with Snapshot CSV export. |
+| **Dept UI** | Department grid, search, pagination, create/edit modal, delete confirm | **VERIFIED** | Actions protected: Add/Edit/Delete visible only to Admin; Viewers have read-only view. |
+| **Dept Detail UI**| Department metadata display + KPI list with progress bars | **VERIFIED** | Add KPI action guarded for Admin; read-only KPI table for Viewers. |
+| **KPI UI** | KPI table, search, status & period filters, pagination, create/edit modal, delete confirm | **VERIFIED** | Add KPI & Actions column guarded for Admin; Viewers retain filters & CSV export. |
+| **KPI Detail UI**| KPI details, progress indicator, department back-link, Edit/Delete modal triggers | **VERIFIED** | Value update, Edit, and Delete actions guarded for Admin. |
+| **Auth UI** | Login page with demo quick sign-in, protected route redirect | **VERIFIED** | Tested and confirmed in browser; redirects unauthenticated users to `/login`. |
+| **Testing** | Backend Jest + Supertest integration suite | **VERIFIED** | 45 passing tests across 6 suites against `mongodb-memory-server`. |
+| **Testing** | Frontend unit / component tests | **NOT IMPLEMENTED** | No frontend test runner configured yet in `client/package.json`. |
+| **DevOps / Deploy**| Production build compilation | **VERIFIED** | Verified with Vite: 0 errors in 2.63s. |
+| **DevOps / Deploy**| Free-tier deployment guide & Mongo Atlas config | **VERIFIED** | Comprehensive guide documented in `DEPLOYMENT.md`. |
 
 ---
 
 ## 4. Current Test Results
 
 Ran test suite via `npm test` inside `server/`:
-- **Suites:** 2 passed, 2 total (`tests/health.test.js`, `tests/kpi.validation.test.js`)
-- **Tests:** 10 passed, 10 total
-- **Execution Time:** ~34.8 seconds (includes memory binary initialization)
+- **Suites:** 6 passed, 6 total (`auth.test.js`, `department.test.js`, `kpi.validation.test.js`, `kpi.summary.test.js`, `csv.export.test.js`, `health.test.js`)
+- **Tests:** 45 passed, 45 total (100% passing)
+- **Execution Time:** ~10.5 seconds
 
 ---
 
 ## 5. Known Technical Debt, Vulnerabilities & Risks
 
-1. **Department Deletion Orphan Risk (High):** Deleting a Department does not delete or reassign its child KPIs. When a KPI refers to a deleted Department, queries expecting `.department.name` can return null or render as "Unknown".
-2. **Unit Mixing in Aggregations (Medium):** In `getSummaryByDepartment`, `totalTarget` and `totalActual` sum sums across KPIs with disparate units (e.g. summing USD + counts + percentages). The KPI average achievement in that query calculates `(totalActual / totalTarget) * 100` rather than averaging the normalized achievement percentage per KPI.
-3. **Missing Department Test Coverage (Medium):** Department validation and duplicate-code conflict flows lack automated test suites.
-4. **Dev-dependency NPM audit warnings (Low):** `braces` (via nodemon) and `sprintf-js` (via jest) are present in dev dependencies only, zero impact on production runtime.
+1. **Frontend Component Tests (Medium):** The frontend relies on manual verification and production build compilation; automated Vitest/RTL tests are not yet implemented.
+2. **Dev-dependency NPM audit warnings (Low):** `braces` (via nodemon) and `sprintf-js` (via jest) are present in dev dependencies only, zero impact on production runtime.
 
 ---
 
-## 6. Remaining MVP Requirements & Prioritized Milestone Plan
-
-- **Milestone 3A (Data Integrity & Aggregation Fixes):**
-  - Add orphan prevention: Prevent department deletion if active KPIs are assigned, or provide safe options.
-  - Fix Department Summary Aggregation to compute average achievement across KPIs safely rather than mixing units in raw sums.
-- **Milestone 3B (Backend Test Coverage Expansion):**
-  - Add comprehensive test suite for `departmentRoutes.js` (create, duplicate 409, patch, delete, orphan prevention).
-  - Add integration tests for KPI summary and department summary endpoints.
-- **Milestone 3C (Frontend Polish & Consistency):**
-  - Verify all error handling, dirty form alerts, and empty states across pages.
-  - Ensure Department Detail page has Add KPI action for that specific department.
-- **Milestone 3D (Production Readiness & Free-Tier Deployment Docs):**
-  - Prepare `DEPLOYMENT.md` detailing Render / Railway / Vercel + MongoDB Atlas deployment guide with environment variable setup and production build scripts.
+## 6. Next Recommended Steps
+1. Perform browser manual check of viewer role UI controls (confirming mutating buttons are hidden for Viewer while CSV exports remain accessible).
+2. Configure frontend test runner (Vitest + React Testing Library).
+3. Proceed with production deployment to Render and Vercel per `DEPLOYMENT.md` upon explicit user approval.

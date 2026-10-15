@@ -1,4 +1,4 @@
-﻿// KPI POST validation tests.
+// KPI POST validation tests.
 
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import request from 'supertest';
@@ -7,9 +7,12 @@ import { createApp } from '../src/app.js';
 import { connectDB } from '../src/config/db.js';
 import { Department } from '../src/models/Department.js';
 import { Kpi } from '../src/models/Kpi.js';
+import { User } from '../src/models/User.js';
+import { getAdminAuthHeader } from './helpers/authHelper.js';
 
 let app;
 let departmentId;
+let authHeader;
 
 beforeAll(async () => {
   await connectDB();
@@ -21,7 +24,8 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await Promise.all([Department.deleteMany({}), Kpi.deleteMany({})]);
+  await Promise.all([Department.deleteMany({}), Kpi.deleteMany({}), User.deleteMany({})]);
+  authHeader = await getAdminAuthHeader();
 
   const dept = await Department.create({
     name: 'Test Department',
@@ -35,6 +39,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('rejects missing name with structured 400', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({ code: 'X-1', department: departmentId, target: 100 });
 
     expect(res.status).toBe(400);
@@ -50,6 +55,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('rejects non-alphanumeric code (with spaces)', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({ name: 'Bad Code', code: 'has spaces', department: departmentId, target: 100 });
 
     expect(res.status).toBe(400);
@@ -63,6 +69,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('rejects invalid department id format', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({ name: 'Valid Name', code: 'VALID-1', department: 'not-an-id', target: 100 });
 
     expect(res.status).toBe(400);
@@ -76,6 +83,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('rejects negative target', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({ name: 'Valid Name', code: 'VALID-2', department: departmentId, target: -5 });
 
     expect(res.status).toBe(400);
@@ -89,6 +97,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('rejects invalid statusRule value', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({
         name: 'Valid Name',
         code: 'VALID-3',
@@ -108,6 +117,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('accepts a valid payload and computes achievement', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({
         name: 'Good KPI',
         code: 'GOOD-1',
@@ -131,6 +141,7 @@ describe('POST /api/v1/kpis - validation', () => {
   test('rejects POST against a non-existent department', async () => {
     const res = await request(app)
       .post('/api/v1/kpis')
+      .set(authHeader)
       .send({
         name: 'Orphan KPI',
         code: 'ORPHAN-1',

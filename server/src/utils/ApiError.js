@@ -1,4 +1,4 @@
-﻿// Custom error class so controllers/services can throw errors with an HTTP status code.
+// Custom error class so controllers/services can throw errors with an HTTP status code.
 // The global error handler catches these and turns them into a JSON response.
 
 export class ApiError extends Error {
@@ -17,6 +17,14 @@ export class ApiError extends Error {
 
   static notFound(message = 'Resource not found') {
     return new ApiError(404, message, 'NOT_FOUND');
+  }
+
+  static unauthorized(message = 'Unauthorized', details = null) {
+    return new ApiError(401, message, 'UNAUTHORIZED', details);
+  }
+
+  static forbidden(message = 'Forbidden', details = null) {
+    return new ApiError(403, message, 'FORBIDDEN', details);
   }
 
   static conflict(message, details = null) {

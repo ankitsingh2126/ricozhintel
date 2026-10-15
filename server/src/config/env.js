@@ -1,4 +1,4 @@
-﻿// Loads and validates environment variables.
+// Loads and validates environment variables.
 // Every other file must import config from here — never read process.env directly.
 
 import dotenv from 'dotenv';
@@ -6,6 +6,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const REQUIRED_KEYS = ['PORT', 'NODE_ENV', 'MONGODB_URI', 'CLIENT_ORIGIN'];
+
+if (process.env.NODE_ENV === 'production') {
+  REQUIRED_KEYS.push('JWT_SECRET');
+}
 
 const missing = REQUIRED_KEYS.filter((key) => !process.env[key]);
 
@@ -21,5 +25,7 @@ export const env = {
   nodeEnv: process.env.NODE_ENV,
   mongoUri: process.env.MONGODB_URI,
   clientOrigin: process.env.CLIENT_ORIGIN,
+  jwtSecret: process.env.JWT_SECRET || 'dev-jwt-secret-key-ricozhintel-min-32-chars-long',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   isProduction: process.env.NODE_ENV === 'production',
 };

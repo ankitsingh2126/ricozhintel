@@ -1,4 +1,4 @@
-﻿// Departments page with full CRUD:
+// Departments page with full CRUD:
 // - List with loading/error/empty states
 // - Search by name or code (server-side filter)
 // - Pagination (6 per page)
@@ -19,6 +19,7 @@ import DepartmentFormModal, {
   EMPTY_DEPARTMENT_FORM,
 } from '../components/departments/DepartmentFormModal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useFetch } from '../hooks/useFetch.js';
 import { apiClient } from '../services/apiClient.js';
 import { fetchDepartments } from '../services/departmentService.js';
@@ -35,6 +36,7 @@ const formatError = (err) => {
 
 export default function DepartmentsPage() {
   const { showSuccess, showError } = useToast();
+  const { isAdmin } = useAuth();
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -147,15 +149,17 @@ export default function DepartmentsPage() {
         title="Departments"
         description="All departments across the organization."
         action={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
-                       text-white text-sm font-medium hover:bg-brand-700"
-          >
-            <Plus size={16} />
-            Add Department
-          </button>
+          isAdmin ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
+                         text-white text-sm font-medium hover:bg-brand-700 cursor-pointer"
+            >
+              <Plus size={16} />
+              Add Department
+            </button>
+          ) : null
         }
       />
 
@@ -238,26 +242,28 @@ export default function DepartmentsPage() {
                   <p className="mt-2 text-sm text-slate-500 line-clamp-2">{dept.description}</p>
                 )}
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(dept)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium
-                               text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-md"
-                  >
-                    <Pencil size={13} />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openConfirmDelete(dept)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium
-                               text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md"
-                  >
-                    <Trash2 size={13} />
-                    Delete
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(dept)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium
+                                 text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-md cursor-pointer"
+                    >
+                      <Pencil size={13} />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openConfirmDelete(dept)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium
+                                 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

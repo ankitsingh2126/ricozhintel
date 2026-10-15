@@ -1,4 +1,4 @@
-﻿# IMPLEMENTATION PLAN: Ricozhintel MVP Completion
+# IMPLEMENTATION PLAN: Ricozhintel MVP Completion
 
 Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MVP requirements, fixes data integrity gaps, extends automated testing, and ensures production readiness without breaking existing code.
 
@@ -37,9 +37,40 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
 
 ---
 
-## Milestone 4: Deployment Documentation & Verification
-1. **Free-Tier Deployment Guide (`DEPLOYMENT.md`):**
+## Milestone 4: CSV Export & Deployment Architecture
+1. **RFC 4180 CSV Export Utility (`client/src/utils/csvExport.js`):**
+   - KPI table export respecting active filters (search, status, period).
+   - Executive Dashboard Department snapshot export.
+2. **Free-Tier Deployment Guide (`DEPLOYMENT.md`):**
    - MongoDB Atlas cluster setup & connection URI formatting.
    - Backend deployment configuration (Render / Railway / fly.io).
    - Frontend deployment configuration (Vercel / Netlify / Cloudflare Pages).
    - Environment variables matrix and health-check verification steps.
+
+---
+
+## Milestone 5: Authentication & Role-Based Access Control (Completed)
+1. **Stateless JWT Security Architecture:**
+   - User schema with `bcryptjs` password hashing, unique email enforcement, role field (`admin` | `viewer`).
+   - `authenticate` and `authorize('admin')` middleware securing Express routes.
+   - Authentication routes: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`.
+   - Seed script populates demo Admin and Viewer accounts.
+2. **Expanded Test Coverage:**
+   - Added `server/tests/auth.test.js` (14 tests).
+   - Updated existing test suites with authentication headers.
+   - 45/45 tests passing in 10.5s across 6 test suites.
+3. **Frontend Session & UI Role Guards:**
+   - `AuthContext.jsx` with persistent token storage and automatic session verification.
+   - `ProtectedRoute.jsx` guarding all application routes, redirecting unauthenticated traffic to `/login`.
+   - `LoginPage.jsx` with quick demo sign-in buttons for Admin and Viewer.
+   - `Header.jsx` displaying user name, role badge, and Logout button.
+   - UI role guards hiding Add/Edit/Delete/Value controls for Viewer role in `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, and `KpiDetailPage`.
+   - Viewers retain full read access, dashboard filters, and CSV downloads.
+
+---
+
+## Milestone 6: Automated Frontend Testing & Production Rollout
+1. **Frontend Component Tests:**
+   - Configure Vitest + React Testing Library for automated UI tests.
+2. **Production Deployment:**
+   - Execute production deployment to Render and Vercel following `DEPLOYMENT.md`.

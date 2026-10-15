@@ -19,6 +19,7 @@ import ProgressBar from '../components/common/ProgressBar.jsx';
 import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
 import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useFetch } from '../hooks/useFetch.js';
 import { apiClient } from '../services/apiClient.js';
 import { fetchKpis } from '../services/kpiService.js';
@@ -53,6 +54,7 @@ const formatError = (err) => {
 
 export default function KpisPage() {
   const { showSuccess, showError } = useToast();
+  const { isAdmin } = useAuth();
 
   const [status, setStatus] = useState('');
   const [period, setPeriod] = useState('');
@@ -252,20 +254,22 @@ export default function KpisPage() {
               disabled={exporting}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-300
                          bg-white text-slate-700 text-sm font-medium hover:bg-slate-50
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+                         disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <Download size={15} />
               {exporting ? 'Exporting…' : 'Export CSV'}
             </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
-                         text-white text-sm font-medium hover:bg-brand-700"
-            >
-              <Plus size={16} />
-              Add KPI
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={openCreate}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
+                           text-white text-sm font-medium hover:bg-brand-700 cursor-pointer"
+              >
+                <Plus size={16} />
+                Add KPI
+              </button>
+            )}
           </div>
         }
       />
@@ -328,7 +332,7 @@ export default function KpisPage() {
                     <th className="text-left px-4 py-3 font-medium">Current</th>
                     <th className="text-left px-4 py-3 font-medium w-40">Progress</th>
                     <th className="text-left px-4 py-3 font-medium">Status</th>
-                    <th className="text-right px-4 py-3 font-medium">Actions</th>
+                    {isAdmin && <th className="text-right px-4 py-3 font-medium">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -362,38 +366,40 @@ export default function KpisPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3"><StatusBadge status={kpi.status} /></td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => openQuickValue(kpi)}
-                              title="Update Current Value"
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
-                                         text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 rounded-md"
-                            >
-                              <Gauge size={12} />
-                              Value
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEdit(kpi)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
-                                         text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-md"
-                            >
-                              <Pencil size={12} />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openConfirmDelete(kpi)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
-                                         text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md"
-                            >
-                              <Trash2 size={12} />
-                              Delete
-                            </button>
-                          </div>
-                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => openQuickValue(kpi)}
+                                title="Update Current Value"
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
+                                           text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 rounded-md cursor-pointer"
+                              >
+                                <Gauge size={12} />
+                                Value
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openEdit(kpi)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
+                                           text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-md cursor-pointer"
+                              >
+                                <Pencil size={12} />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openConfirmDelete(kpi)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
+                                           text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer"
+                              >
+                                <Trash2 size={12} />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
