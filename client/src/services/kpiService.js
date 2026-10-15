@@ -1,14 +1,14 @@
-﻿// KPI-related API calls.
+// KPI-related API calls.
 
 import { apiClient } from './apiClient.js';
 
-export const fetchKpiSummary = async () => {
-  const res = await apiClient.get('/kpis/summary');
+export const fetchKpiSummary = async (params = {}) => {
+  const res = await apiClient.get('/kpis/summary', { params });
   return res.data.data; // { total, byStatus, avgProgress }
 };
 
-export const fetchKpiSummaryByDepartment = async () => {
-  const res = await apiClient.get('/kpis/summary/by-department');
+export const fetchKpiSummaryByDepartment = async (params = {}) => {
+  const res = await apiClient.get('/kpis/summary/by-department', { params });
   return res.data.data; // array of department summary rows
 };
 

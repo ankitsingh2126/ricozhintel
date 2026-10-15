@@ -1,4 +1,4 @@
-﻿// KPI controller. HTTP concerns only.
+// KPI controller. HTTP concerns only.
 
 import * as kpiService from '../services/kpiService.js';
 import { sendSuccess } from '../utils/apiResponse.js';
@@ -26,7 +26,8 @@ export const getAllKpis = async (req, res, next) => {
 // GET /api/v1/kpis/summary
 export const getSummary = async (req, res, next) => {
   try {
-    const summary = await kpiService.getKpiSummary();
+    const { department, status, period } = req.query;
+    const summary = await kpiService.getKpiSummary({ department, status, period });
     return sendSuccess(res, summary);
   } catch (err) {
     next(err);
@@ -36,7 +37,8 @@ export const getSummary = async (req, res, next) => {
 // GET /api/v1/kpis/summary/by-department
 export const getSummaryByDepartment = async (req, res, next) => {
   try {
-    const rows = await kpiService.getSummaryByDepartment();
+    const { department, status, period } = req.query;
+    const rows = await kpiService.getSummaryByDepartment({ department, status, period });
     return sendSuccess(res, rows);
   } catch (err) {
     next(err);

@@ -1,4 +1,4 @@
-﻿// KPIs page with full CRUD:
+// KPIs page with full CRUD:
 // - List with filters (status, period, search)
 // - Pagination (10 per page)
 // - Add / Edit via the shared KpiFormModal
@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Gauge } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Loader from '../components/common/Loader.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
@@ -17,6 +17,7 @@ import Pagination from '../components/common/Pagination.jsx';
 import StatusBadge from '../components/common/StatusBadge.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
 import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
+import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useFetch } from '../hooks/useFetch.js';
 import { apiClient } from '../services/apiClient.js';
@@ -80,6 +81,7 @@ export default function KpisPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [quickValueTarget, setQuickValueTarget] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +94,15 @@ export default function KpisPage() {
   const openEdit = (kpi) => {
     setEditing(kpi);
     setFormOpen(true);
+  };
+
+  const openQuickValue = (kpi) => {
+    setQuickValueTarget(kpi);
+  };
+
+  const closeQuickValue = () => {
+    if (submitting) return;
+    setQuickValueTarget(null);
   };
 
   const closeForm = () => {
@@ -109,6 +120,21 @@ export default function KpisPage() {
     if (submitting) return;
     setConfirmOpen(false);
     setDeleteTarget(null);
+  };
+
+  const handleQuickValueUpdate = async ({ currentValue, status }) => {
+    if (!quickValueTarget) return;
+    setSubmitting(true);
+    try {
+      await apiClient.patch(`/kpis/${quickValueTarget._id}`, { currentValue, status });
+      showSuccess(`KPI "${quickValueTarget.name}" value updated`);
+      setQuickValueTarget(null);
+      refetch();
+    } catch (err) {
+      showError(formatError(err));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async (formValues) => {
@@ -280,6 +306,16 @@ export default function KpisPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
+                              onClick={() => openQuickValue(kpi)}
+                              title="Update Current Value"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
+                                         text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 rounded-md"
+                            >
+                              <Gauge size={12} />
+                              Value
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => openEdit(kpi)}
                               className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium
                                          text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-md"
@@ -339,6 +375,14 @@ export default function KpisPage() {
         mode={editing ? 'edit' : 'create'}
         submitting={submitting}
         departments={departments.data?.items || []}
+      />
+
+      <QuickValueModal
+        isOpen={Boolean(quickValueTarget)}
+        onClose={closeQuickValue}
+        onSubmit={handleQuickValueUpdate}
+        kpi={quickValueTarget}
+        submitting={submitting}
       />
 
       <ConfirmDialog

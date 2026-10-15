@@ -1,8 +1,5 @@
-﻿// Executive dashboard.
-// Summary cards + two charts + department snapshot table.
-// All data comes from the live backend.
-
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { Filter, X } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Loader from '../components/common/Loader.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
@@ -16,17 +13,68 @@ import {
   fetchKpiSummaryByDepartment,
   fetchKpis,
 } from '../services/kpiService.js';
+import { fetchDepartments } from '../services/departmentService.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { formatNumber, formatPercent } from '../utils/formatters.js';
 
-export default function DashboardPage() {
-  const summaryFetcher = useCallback(() => fetchKpiSummary(), []);
-  const kpisFetcher = useCallback(() => fetchKpis({ limit: 100 }), []);
-  const deptSummaryFetcher = useCallback(() => fetchKpiSummaryByDepartment(), []);
+const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'on_track', label: 'On Track' },
+  { value: 'at_risk', label: 'At Risk' },
+  { value: 'off_track', label: 'Off Track' },
+  { value: 'completed', label: 'Completed' },
+];
 
-  const summary = useFetch(summaryFetcher, []);
-  const kpis = useFetch(kpisFetcher, []);
-  const deptSummary = useFetch(deptSummaryFetcher, []);
+const PERIOD_OPTIONS = [
+  { value: '', label: 'All periods' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly', label: 'Yearly' },
+];
+
+export default function DashboardPage() {
+  const [department, setDepartment] = useState('');
+  const [period, setPeriod] = useState('');
+  const [status, setStatus] = useState('');
+
+  // Fetch departments for the department filter dropdown
+  const deptListFetcher = useCallback(() => fetchDepartments({ limit: 100 }), []);
+  const departments = useFetch(deptListFetcher, []);
+
+  const summaryFetcher = useCallback(
+    () =>
+      fetchKpiSummary({
+        department: department || undefined,
+        period: period || undefined,
+        status: status || undefined,
+      }),
+    [department, period, status]
+  );
+
+  const kpisFetcher = useCallback(
+    () =>
+      fetchKpis({
+        department: department || undefined,
+        period: period || undefined,
+        status: status || undefined,
+        limit: 100,
+      }),
+    [department, period, status]
+  );
+
+  const deptSummaryFetcher = useCallback(
+    () =>
+      fetchKpiSummaryByDepartment({
+        department: department || undefined,
+        period: period || undefined,
+        status: status || undefined,
+      }),
+    [department, period, status]
+  );
+
+  const summary = useFetch(summaryFetcher, [department, period, status]);
+  const kpis = useFetch(kpisFetcher, [department, period, status]);
+  const deptSummary = useFetch(deptSummaryFetcher, [department, period, status]);
 
   const loading = summary.loading || kpis.loading || deptSummary.loading;
   const error = summary.error || kpis.error || deptSummary.error;
@@ -37,12 +85,89 @@ export default function DashboardPage() {
     deptSummary.refetch();
   };
 
+  const hasActiveFilters = Boolean(department || period || status);
+  const resetFilters = () => {
+    setDepartment('');
+    setPeriod('');
+    setStatus('');
+  };
+
   return (
     <div>
       <PageHeader
         title="Executive Dashboard"
         description="Unified view of cross-functional business performance."
       />
+
+      {/* Filter Toolbar */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <Filter size={16} className="text-brand-600" />
+            <span>Dashboard Scope</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Department Filter */}
+            <select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-md text-sm bg-white
+                         focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              aria-label="Filter by department"
+            >
+              <option value="">All departments</option>
+              {departments.data?.items?.map((d) => (
+                <option key={d._id} value={d._id}>
+                  {d.name} ({d.code})
+                </option>
+              ))}
+            </select>
+
+            {/* Period Filter */}
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-md text-sm bg-white
+                         focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              aria-label="Filter by period"
+            >
+              {PERIOD_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Status Filter */}
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-md text-sm bg-white
+                         focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              aria-label="Filter by status"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium
+                           text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200
+                           rounded-md transition"
+              >
+                <X size={13} /> Reset
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {loading && <Loader label="Loading dashboard…" />}
 
@@ -58,7 +183,7 @@ export default function DashboardPage() {
               label="Total KPIs"
               value={formatNumber(summary.data.total)}
               tone="info"
-              hint="Across all departments"
+              hint={department ? 'In selected department' : 'Across all departments'}
             />
             <KpiCard
               label="On Track"
@@ -100,8 +225,12 @@ export default function DashboardPage() {
 
             {deptSummary.data.length === 0 && (
               <EmptyState
-                title="No department data yet"
-                description="Add KPIs to your departments to see the snapshot here."
+                title={hasActiveFilters ? 'No KPIs match your filters' : 'No department data yet'}
+                description={
+                  hasActiveFilters
+                    ? 'Try adjusting or resetting your department, period, or status filters.'
+                    : 'Add KPIs to your departments to see the snapshot here.'
+                }
               />
             )}
 

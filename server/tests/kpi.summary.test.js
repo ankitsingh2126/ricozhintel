@@ -1,4 +1,4 @@
-﻿// KPI summary and aggregation tests.
+// KPI summary and aggregation tests.
 
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import request from 'supertest';
@@ -109,4 +109,56 @@ describe('KPI Aggregation & Summary API', () => {
     expect(mktRow.total).toBe(1);
     expect(mktRow.avgAchievement).toBe(50);
   });
+
+  test('GET /api/v1/kpis/summary supports department, status, and period filters', async () => {
+    const dept1 = await Department.create({ name: 'Finance', code: 'FIN' });
+    const dept2 = await Department.create({ name: 'Human Resources', code: 'HR' });
+
+    await Kpi.create([
+      {
+        name: 'Operating Margin',
+        code: 'FIN-OPM',
+        department: dept1._id,
+        target: 20,
+        currentValue: 18,
+        status: 'on_track',
+        period: 'quarterly',
+      },
+      {
+        name: 'Headcount Growth',
+        code: 'HR-HCG',
+        department: dept2._id,
+        target: 10,
+        currentValue: 5,
+        status: 'at_risk',
+        period: 'monthly',
+      },
+    ]);
+
+    // Filter by department
+    const deptRes = await request(app).get(`/api/v1/kpis/summary?department=${dept1._id}`);
+    expect(deptRes.status).toBe(200);
+    expect(deptRes.body.data.total).toBe(1);
+    expect(deptRes.body.data.byStatus.on_track).toBe(1);
+
+    // Filter by period
+    const periodRes = await request(app).get('/api/v1/kpis/summary?period=monthly');
+    expect(periodRes.status).toBe(200);
+    expect(periodRes.body.data.total).toBe(1);
+    expect(periodRes.body.data.byStatus.at_risk).toBe(1);
+
+    // Filter by status
+    const statusRes = await request(app).get('/api/v1/kpis/summary?status=on_track');
+    expect(statusRes.status).toBe(200);
+    expect(statusRes.body.data.total).toBe(1);
+
+    // Filter by department in by-department summary
+    const deptSummaryRes = await request(app).get(
+      `/api/v1/kpis/summary/by-department?department=${dept1._id}`
+    );
+    expect(deptSummaryRes.status).toBe(200);
+    expect(deptSummaryRes.body.data.length).toBe(1);
+    expect(deptSummaryRes.body.data[0].department.code).toBe('FIN');
+  });
 });
+

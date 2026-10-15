@@ -1,6 +1,7 @@
 // KPI service.
 // Business logic only. Controllers handle HTTP; this handles the data layer.
 
+import mongoose from 'mongoose';
 import { Kpi } from '../models/Kpi.js';
 import { Department } from '../models/Department.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -115,12 +116,34 @@ export const deleteKpi = async (id) => {
 
 // ---- summary ------------------------------------------------------------
 
+// Helper to build match filter from query parameters for summary aggregations
+const buildSummaryFilter = ({ department, status, period } = {}) => {
+  const filter = {};
+  if (department) {
+    // If it's a valid 24-char ObjectId string, convert to ObjectId instance
+    if (mongoose.Types.ObjectId.isValid(department)) {
+      filter.department = new mongoose.Types.ObjectId(department);
+    } else {
+      filter.department = department;
+    }
+  }
+  if (status) filter.status = status;
+  if (period) filter.period = period;
+  return filter;
+};
+
 // Global summary for the top KPI cards on the dashboard.
-export const getKpiSummary = async () => {
+export const getKpiSummary = async ({ department, status, period } = {}) => {
+  const matchFilter = buildSummaryFilter({ department, status, period });
+
   const [total, byStatus, progressAgg] = await Promise.all([
-    Kpi.countDocuments(),
-    Kpi.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Kpi.countDocuments(matchFilter),
     Kpi.aggregate([
+      ...(Object.keys(matchFilter).length > 0 ? [{ $match: matchFilter }] : []),
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+    Kpi.aggregate([
+      ...(Object.keys(matchFilter).length > 0 ? [{ $match: matchFilter }] : []),
       {
         $group: {
           _id: null,
@@ -153,8 +176,11 @@ export const getKpiSummary = async () => {
 // Department-wise summary. One row per department that has KPIs.
 // Individual KPI achievements are computed per rule, and their average gives the
 // department's avgAchievement without incorrectly summing mismatched units (e.g. USD + % + count).
-export const getSummaryByDepartment = async () => {
+export const getSummaryByDepartment = async ({ department, status, period } = {}) => {
+  const matchFilter = buildSummaryFilter({ department, status, period });
+
   const rows = await Kpi.aggregate([
+    ...(Object.keys(matchFilter).length > 0 ? [{ $match: matchFilter }] : []),
     {
       $group: {
         _id: '$department',

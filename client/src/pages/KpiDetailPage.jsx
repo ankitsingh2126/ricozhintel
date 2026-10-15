@@ -1,11 +1,11 @@
-﻿// KPI detail page.
+// KPI detail page.
 // Shows the full record, progress bar, status badge, and links back to the
 // owning department. Includes Edit and Delete actions wired to the same
 // modal and confirm dialog used by the list page.
 
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Gauge } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Loader from '../components/common/Loader.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
@@ -13,6 +13,7 @@ import StatusBadge from '../components/common/StatusBadge.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
 import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
+import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { apiClient } from '../services/apiClient.js';
 import { fetchDepartments } from '../services/departmentService.js';
@@ -46,6 +47,7 @@ export default function KpiDetailPage() {
 
   // ---- modal + confirm state -------------------------------------------
   const [formOpen, setFormOpen] = useState(false);
+  const [quickValueOpen, setQuickValueOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,6 +66,20 @@ export default function KpiDetailPage() {
   };
 
   // ---- actions ----------------------------------------------------------
+  const handleQuickValueUpdate = async ({ currentValue, status }) => {
+    setSubmitting(true);
+    try {
+      await apiClient.patch(`/kpis/${id}`, { currentValue, status });
+      showSuccess(`KPI value updated to ${currentValue}`);
+      setQuickValueOpen(false);
+      refetch();
+    } catch (err) {
+      showError(formatError(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (formValues) => {
     setSubmitting(true);
     try {
@@ -146,6 +162,15 @@ export default function KpiDetailPage() {
             action={
               <div className="flex items-center gap-2">
                 <StatusBadge status={data.status} />
+                <button
+                  type="button"
+                  onClick={() => setQuickValueOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+                             text-brand-700 bg-brand-50 border border-brand-200 rounded-md
+                             hover:bg-brand-100"
+                >
+                  <Gauge size={14} /> Update Value
+                </button>
                 <button
                   type="button"
                   onClick={openEdit}
@@ -232,6 +257,14 @@ export default function KpiDetailPage() {
         mode="edit"
         submitting={submitting}
         departments={departments.data?.items || []}
+      />
+
+      <QuickValueModal
+        isOpen={quickValueOpen}
+        onClose={() => !submitting && setQuickValueOpen(false)}
+        onSubmit={handleQuickValueUpdate}
+        kpi={data}
+        submitting={submitting}
       />
 
       <ConfirmDialog
