@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Pencil, Trash2, Gauge } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Gauge, Download } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import Loader from '../components/common/Loader.jsx';
 import ErrorState from '../components/common/ErrorState.jsx';
@@ -23,7 +23,8 @@ import { useFetch } from '../hooks/useFetch.js';
 import { apiClient } from '../services/apiClient.js';
 import { fetchKpis } from '../services/kpiService.js';
 import { fetchDepartments } from '../services/departmentService.js';
-import { formatNumber } from '../utils/formatters.js';
+import { formatNumber, STATUS_LABELS } from '../utils/formatters.js';
+import { generateCsv, downloadCsv, getExportFilename } from '../utils/csvExport.js';
 
 const PAGE_SIZE = 10;
 
@@ -122,6 +123,52 @@ export default function KpisPage() {
     setDeleteTarget(null);
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      // Fetch all KPIs matching the current filters (up to 1000)
+      const res = await fetchKpis({
+        status: status || undefined,
+        period: period || undefined,
+        search: search || undefined,
+        page: 1,
+        limit: 1000,
+      });
+
+      const items = res.items || [];
+      if (items.length === 0) {
+        showError('No KPIs to export for the selected filters.');
+        return;
+      }
+
+      const columns = [
+        { label: 'KPI Name', key: 'name' },
+        { label: 'Code', key: 'code' },
+        { label: 'Department Name', key: (r) => r.department?.name || '—' },
+        { label: 'Department Code', key: (r) => r.department?.code || '—' },
+        { label: 'Target', key: 'target' },
+        { label: 'Current Value', key: 'currentValue' },
+        { label: 'Unit', key: 'unit' },
+        { label: 'Achievement (%)', key: (r) => r.achievement != null ? `${r.achievement}%` : '—' },
+        { label: 'Status', key: (r) => STATUS_LABELS[r.status] || r.status },
+        { label: 'Period', key: 'period' },
+        { label: 'Owner', key: (r) => r.owner || '—' },
+        { label: 'Status Rule', key: (r) => r.statusRule ? r.statusRule.replace(/_/g, ' ') : '—' },
+      ];
+
+      const csvContent = generateCsv(columns, items);
+      const filename = getExportFilename('kpis');
+      downloadCsv(csvContent, filename);
+      showSuccess(`Exported ${items.length} KPI(s) to ${filename}`);
+    } catch (err) {
+      showError(formatError(err));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleQuickValueUpdate = async ({ currentValue, status }) => {
     if (!quickValueTarget) return;
     setSubmitting(true);
@@ -198,15 +245,28 @@ export default function KpisPage() {
         title="KPIs"
         description="Key performance indicators across all departments."
         action={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
-                       text-white text-sm font-medium hover:bg-brand-700"
-          >
-            <Plus size={16} />
-            Add KPI
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-300
+                         bg-white text-slate-700 text-sm font-medium hover:bg-slate-50
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download size={15} />
+              {exporting ? 'Exporting…' : 'Export CSV'}
+            </button>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-600
+                         text-white text-sm font-medium hover:bg-brand-700"
+            >
+              <Plus size={16} />
+              Add KPI
+            </button>
+          </div>
         }
       />
 
