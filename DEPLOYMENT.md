@@ -153,10 +153,11 @@ Content-Type: application/json
 
 ## 7. Pre-Flight Verification Checklist
 
-- [ ] Backend `/api/v1/health` returns `HTTP 200` with `db: "connected"` and `status: "ok"`.
-- [ ] Render environment variables include `JWT_SECRET` (≥32 chars), `NODE_ENV=production`, `MONGODB_URI`, `CLIENT_ORIGIN`.
-- [ ] Vercel environment variables include `VITE_API_URL` (or `VITE_API_BASE_URL`) pointing to `https://ricozhintel-api.onrender.com/api/v1`.
-- [ ] CORS is configured with the exact Vercel frontend URL.
-- [ ] Initial production admin created via `/api/v1/auth/bootstrap-admin` or CLI provisioning script with a private, strong password.
-- [ ] No `.env` credentials are committed in Git history.
-- [ ] Rate limiter permits ordinary usage (120 req/min per IP, with `trust proxy` enabled).
+- [x] Backend `/api/v1/health` returns `HTTP 200` with `db: "connected"` and `status: "ok"` (verified on `https://ricozhintel-api.onrender.com/api/v1/health`).
+- [x] Render environment variables include `JWT_SECRET` (≥32 chars), `NODE_ENV=production`, `MONGODB_URI`, `CLIENT_ORIGIN`.
+- [x] Vercel environment variables include `VITE_API_URL` (or `VITE_API_BASE_URL`) pointing to `https://ricozhintel-api.onrender.com/api/v1`.
+- [x] CORS is configured with the exact Vercel frontend URL (`https://ricozhintel.vercel.app`).
+- [x] Initial production admin created via `/api/v1/auth/bootstrap-admin` or CLI provisioning script with a private, strong password.
+- [x] No `.env` credentials are committed in Git history.
+- [x] Rate limiter permits ordinary usage (120 req/min per IP, with `trust proxy` enabled).
+- [ ] **Production end-to-end smoke test:** Full user journeys (login, Department CRUD, KPI Quick Value update, CSV export) verified against live production URLs (Pending: Milestone 7, Stage 7.3).

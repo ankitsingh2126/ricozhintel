@@ -1,8 +1,12 @@
 # PROJECT PROGRESS: Ricozhintel
 
-Last Updated: 2026-10-15
-State: Milestone 6 Complete (Frontend Testing and Verification Implemented & Passing)
-Latest Confirmed Git Commit: 6a3d025 ("feat: add authentication and role-based access")
+Last Updated: 2026-10-19
+State: Milestone 6 Complete (128 Client Tests & 55 Server Tests Passing — 183 Total), Milestone 7 In Progress (Stage 7.1 Documentation Synchronization)
+Latest Confirmed Git Commit: `85dcaf9` ("test(client): cover not found page and clean chart warnings")
+
+**Live Production Deployments:**
+- Frontend: https://ricozhintel.vercel.app
+- Backend: https://ricozhintel-api.onrender.com
 
 ---
 
@@ -13,12 +17,13 @@ Latest Confirmed Git Commit: 6a3d025 ("feat: add authentication and role-based a
 - [x] Corrected department-wise achievement calculation in `kpiService.getSummaryByDepartment` to calculate average individual KPI achievements rather than summing raw values across mismatched units.
 - [x] Enhanced `DepartmentDetailPage` with direct "Add KPI" capability pre-filling the department context.
 - [x] Built and expanded automated backend integration tests:
-  - Added `server/tests/department.test.js` (8 tests covering creation, validation, 409 conflict, pagination, PATCH, PUT alias, deletion blocking on active KPIs, and successful deletion).
-  - Added `server/tests/kpi.summary.test.js` (3 tests covering `/summary` and `/summary/by-department` with department, status, and period filtering).
-  - Preserved existing `health.test.js` and `kpi.validation.test.js`.
-  - Added `server/tests/csv.export.test.js` (10 tests covering cell escaping, quote doubling, line-breaks, CSV generation, dashboard snapshot formatting, and timestamped filenames).
-  - Added `server/tests/auth.test.js` (14 tests covering registration, login, token validation, user profile, and RBAC route guards).
-  - Total test count: 45 tests across 6 test suites (100% passing).
+  - `server/tests/department.test.js` (8 tests covering creation, validation, 409 conflict, pagination, PATCH, PUT alias, deletion blocking on active KPIs, and successful deletion).
+  - `server/tests/kpi.summary.test.js` (13 tests across 3 describe blocks covering `/summary` and `/summary/by-department` with department, status, and period filtering).
+  - `server/tests/health.test.js` (3 tests covering canonical `/api/v1/health`, compatibility alias `/api/health`, and 404 envelope).
+  - `server/tests/kpi.validation.test.js` (7 tests covering missing fields, invalid types, negative targets, invalid rules, achievement calculation, and referential checks).
+  - `server/tests/csv.export.test.js` (10 tests covering cell escaping, quote doubling, line-breaks, CSV generation, dashboard snapshot formatting, and timestamped filenames).
+  - `server/tests/auth.test.js` (14 tests covering registration, login, token validation, user profile, and RBAC route guards).
+  - Total backend tests: 55 tests across 6 test suites (100% passing).
 - [x] Configured SPA redirect rewrites via `client/vercel.json`.
 - [x] Authored comprehensive documentation:
   - `PROJECT_AUDIT.md` (architecture, data flows, verified statuses, technical debt).
@@ -51,43 +56,44 @@ Latest Confirmed Git Commit: 6a3d025 ("feat: add authentication and role-based a
   - Created `ProtectedRoute.jsx` route guard and updated `AppRoutes.jsx`.
   - Updated `Header.jsx` with dynamic user name, role pill (`Admin` / `Viewer`), and Logout button.
   - Added UI role guards: hiding create, edit, delete, and quick-value controls for `viewer` accounts across `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, and `KpiDetailPage`, while ensuring viewers retain read access, dashboard filters, and CSV exports.
-- [x] **Milestone 6 Frontend Testing and Verification:**
+- [x] **Milestone 6 Frontend Testing and Verification (128 Tests across 12 Suites):**
   - Configured Vitest 5, JSDOM, React Testing Library, and `@testing-library/user-event` in `client/vite.config.js` and `client/package.json`.
   - Created test environment setup in `client/src/test/setup.js` with DOM matchers, `window.matchMedia`, `ResizeObserver`, anchor click mocks, and `URL.createObjectURL` polyfills.
   - Created shared test wrapper and auth mock utilities in `client/src/test/testUtils.jsx`.
-  - Authored and verified `client/src/test/auth.test.jsx` (12 tests covering login form, demo credentials, protected routes, and header logout).
-  - Authored and verified `client/src/test/rbac.test.jsx` (8 tests verifying Admin vs Viewer action controls across Departments, Department Detail, KPIs, and KPI Detail pages).
-  - Authored and verified `client/src/test/forms.test.jsx` (7 tests covering `DepartmentFormModal`, `KpiFormModal`, and `QuickValueModal` input validations, accessibility labels, and submit payloads).
-  - Authored and verified `client/src/test/dashboardAndCsv.test.jsx` (10 tests covering Dashboard cards, filter changes, filter reset, snapshot CSV downloads, and RFC 4180 CSV generation utility).
-  - Enhanced form accessibility (`htmlFor`/`id` linking) in `DepartmentFormModal`, `KpiFormModal`, and `QuickValueModal`.
-  - Total frontend tests: 37 tests across 4 test suites (100% passing).
-- [x] **Manual End-to-End Browser Testing (Confirmed by User):**
-  - Department CRUD operations verified in browser UI.
-  - KPI creation and form validations verified in browser UI.
-  - Quick Value update dialog verified in browser UI.
-  - Dashboard filters (Department, Period, Status) verified in browser UI.
-  - CSV exports (KPI table and Dashboard snapshot) verified in browser UI.
-  - Both Admin and Viewer demo logins manually confirmed working in browser UI after seed command.
-- [x] Verified frontend production build compiles without errors (dist bundle ready).
-- [x] Verified automated backend tests pass (45/45 tests in 10.8s across 6 test suites).
+  - **Stage 6.1 (commit `d054777`):** Authored `client/src/test/kpis.test.jsx` (14 tests covering search by name/code, status/period filters, combined filters and pagination reset, pagination boundaries, empty results, CSV export feedback, Quick Value modal submission, delete confirmation/cancellation, and Add/Edit modals).
+  - **Stage 6.2 (commit `edcbee9`):** Authored `client/src/test/departmentDetail.test.jsx` (11 tests covering metadata, associated KPI list, Add KPI prefilled context, 404 state, retry behavior, and admin vs viewer guards) and `client/src/test/kpiDetail.test.jsx` (12 tests covering metadata, higher-is-better vs lower-is-better rules, Quick Value modal, Edit modal, delete workflow, and 404 error states).
+  - **Stage 6.3 (commit `3db40a1`):** Extended `client/src/test/departments.test.jsx` (18 tests covering Add Department, Edit Department prefilled modal, ConfirmDialog delete, delete cancellation, error states preserving modal input, and pagination step-back).
+  - **Stage 6.4 (commit `277f3c4`):** Authored `client/src/test/apiClient.test.js` (14 tests covering Bearer token attachment from localStorage, unauthenticated requests, structured error parsing with status/code/details, and missing response safety) and `client/src/test/toasts.test.jsx` (8 tests covering success/error/info styling, stacking, auto-dismissal, and manual dismiss).
+  - **Stage 6.5 (commit `85dcaf9`):** Authored `client/src/test/notFound.test.jsx` (4 tests covering 404 code, heading, message, and Back to Dashboard navigation) and eliminated Recharts zero-dimension JSDOM warnings via targeted filter in `client/src/test/setup.js`.
+  - Verified existing suites: `auth.test.jsx` (12 tests), `rbac.test.jsx` (8 tests), `forms.test.jsx` (7 tests), `dashboardAndCsv.test.jsx` (10 tests), `useFetch.test.jsx` (10 tests).
+  - Total frontend tests: 128 tests across 12 test suites (100% passing).
+- [x] Verified frontend ESLint check passes cleanly: 0 errors, 0 warnings.
+- [x] Verified frontend production build compiles cleanly: Vite v8 in 2.10s.
+- [x] Verified live backend health check: `https://ricozhintel-api.onrender.com/api/v1/health` returns HTTP 200 with `status: "ok"`, `db: "connected"`.
+- [x] Verified live frontend shell: `https://ricozhintel.vercel.app` serves HTTP 200.
 
 ---
 
 ## Test & Build Ledger
 | Target | Command | Result | Notes |
 |---|---|---|---|
-| Server Tests | `npm test` (in `server/`) | **PASS (45/45)** | 6 suites: health, auth/RBAC, kpi validation, department CRUD/integrity, kpi summary/aggregations, csv export (10.8s) |
-| Client Tests | `npm test` (in `client/`) | **PASS (37/37)** | 4 suites: auth, rbac, forms, dashboardAndCsv (11.5s) |
-| Client Build | `npm run build` (in `client/`) | **PASS** | Vite production bundle compiled cleanly in `client/dist` (4.13s, 0 errors) |
-| Local E2E Workflows | `node -e "..."` | **PASS** | Department CRUD, KPI CRUD, filtered summaries, quick value update, auth hashing verified on live MongoDB |
-| Browser Manual QA | Manual | **PASS** | Confirmed by user: Department/KPI CRUD, quick updates, filters, CSV downloads, Admin & Viewer logins |
+| Server Tests | `npm test` (in `server/`) | **PASS (55/55)** | 6 suites: `health.test.js` (3), `auth.test.js` (14), `kpi.validation.test.js` (7), `department.test.js` (8), `kpi.summary.test.js` (13), `csv.export.test.js` (10) |
+| Client Tests | `npm test` (in `client/`) | **PASS (128/128)** | 12 suites: `rbac.test.jsx` (8), `auth.test.jsx` (12), `forms.test.jsx` (7), `departmentDetail.test.jsx` (11), `kpiDetail.test.jsx` (12), `useFetch.test.jsx` (10), `toasts.test.jsx` (8), `apiClient.test.js` (14), `kpis.test.jsx` (14), `notFound.test.jsx` (4), `dashboardAndCsv.test.jsx` (10), `departments.test.jsx` (18) |
+| Total Tests | Combined | **PASS (183/183)** | 183 automated tests across 18 test suites (100% passing) |
+| Client Lint | `npm run lint` (in `client/`) | **PASS** | ESLint 9 cleanly passes with 0 errors and 0 warnings |
+| Client Build | `npm run build` (in `client/`) | **PASS** | Vite production bundle compiled cleanly in `client/dist` (2.02s, 0 errors). Initial 750 kB monolithic chunk split into route chunks: `index-bVxxQ0_P.js` (318.41 kB), `DashboardPage-CERYiE-3.js` (367.57 kB), resolving Vite's >500 kB chunk threshold advisory |
+| Live Backend Health | `GET /api/v1/health` on Render | **PASS** | `HTTP 200`, `service: "ricozhintel-api"`, `status: "ok"`, `db: "connected"` |
+| Live Frontend Shell | `GET /` on Vercel | **PASS** | `HTTP 200`, index bundle served |
+| Production Smoke QA | End-to-end user workflows on live URLs | **PENDING** | Formal end-to-end smoke test of all user journeys against production URLs pending Milestone 7 Stage 7.3 |
 
 ---
 
-## Remaining MVP Features & Priorities
-1. **[Priority 1 - Next] Production Deployment:**
-   - Deploy backend to Render (or Fly.io / Railway) per `DEPLOYMENT.md`.
-   - Deploy frontend to Vercel (or Netlify) per `DEPLOYMENT.md`.
-   - Verify cloud environment variables, CORS, and production health checks.
-2. **[Priority 2] Final Acceptance:**
-   - Execute smoke test against production URLs.
+## Milestone 7: Production Rollout & Performance Optimization
+1. **[Stage 7.1 - Completed] Documentation Synchronization:**
+   - Synchronized all architecture, testing, and deployment tracking documents with the latest verified state (commit `85dcaf9`, 183 tests).
+2. **[Stage 7.2 - Completed] Frontend Bundle Size Optimization:**
+   - Successfully implemented route-level code splitting using `React.lazy()` and `<Suspense>` in `client/src/routes/AppRoutes.jsx` for all routes (`LoginPage`, `DashboardPage`, `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, `KpiDetailPage`, `NotFoundPage`).
+   - All generated JavaScript chunks are under 370 kB, completely eliminating the Vite 500 kB chunk warning.
+   - All 128 frontend tests and 55 backend tests remain 100% passing.
+3. **[Stage 7.3 - Pending] Production Smoke Testing & Final Acceptance:**
+   - Execute formal end-to-end verification of user authentication, RBAC boundaries, CRUD operations, Quick Value modal updates, and CSV exports against live production URLs.

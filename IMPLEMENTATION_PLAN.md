@@ -70,23 +70,33 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
 ---
 
 ## Milestone 6: Automated Frontend Testing & Verification (Completed)
-1. **Frontend Component & Integration Tests:**
-   - Configured Vitest + React Testing Library + JSDOM in `client/`.
-   - Setup polyfills for `window.matchMedia`, `ResizeObserver`, anchor click navigation, and `URL.createObjectURL`.
-   - Authored 37 automated frontend tests across 4 test suites (`auth.test.jsx`, `rbac.test.jsx`, `forms.test.jsx`, `dashboardAndCsv.test.jsx`).
-   - Enhanced modal accessibility (`htmlFor`/`id` linking) across `DepartmentFormModal`, `KpiFormModal`, and `QuickValueModal`.
-   - All 37 frontend tests passing in 11.5s.
-2. **Comprehensive Verification:**
-   - All 45 backend tests passing in 10.8s across 6 test suites.
-   - Frontend production build compiles cleanly in 4.13s with zero errors.
+1. **Frontend Component & Integration Test Suite (128 Tests across 12 Suites):**
+   - Configured Vitest + React Testing Library + JSDOM in `client/vite.config.js`.
+   - Setup polyfills for `window.matchMedia`, `ResizeObserver`, anchor click navigation, and `URL.createObjectURL` in `client/src/test/setup.js`.
+   - **Stage 6.1 (commit `d054777`):** KPI page workflows (`kpis.test.jsx`, 14 tests) covering search, status/period filters, pagination, CSV export, Quick Value updates, delete confirmation, and Add/Edit modals.
+   - **Stage 6.2 (commit `edcbee9`):** Department Detail (`departmentDetail.test.jsx`, 11 tests) and KPI Detail (`kpiDetail.test.jsx`, 12 tests) covering metadata rendering, prefilled KPI creation, higher/lower status rules, 404 error states, and retry actions.
+   - **Stage 6.3 (commit `3db40a1`):** Department CRUD workflows (`departments.test.jsx`, 18 tests) covering Add, Edit with prefilled data, ConfirmDialog delete, deletion cancellation, and pagination step-back.
+   - **Stage 6.4 (commit `277f3c4`):** API client interceptors & structured error handling (`apiClient.test.js`, 14 tests) and toast notification system (`toasts.test.jsx`, 8 tests).
+   - **Stage 6.5 (commit `85dcaf9`):** Not Found page (`notFound.test.jsx`, 4 tests) and Recharts zero-dimension JSDOM warning cleanup in `setup.js`.
+   - Baseline suites: Authentication (`auth.test.jsx`, 12 tests), RBAC guards (`rbac.test.jsx`, 8 tests), modal forms (`forms.test.jsx`, 7 tests), dashboard & CSV (`dashboardAndCsv.test.jsx`, 10 tests), custom fetch hook (`useFetch.test.jsx`, 10 tests).
+   - **128/128 frontend tests passing** in ~22.6s.
+2. **Comprehensive Verification & Code Quality:**
+   - **55/55 backend tests passing** across 6 test suites in ~23s.
+   - **183 total automated tests** passing across the full project (100% pass rate).
+   - Frontend ESLint check cleanly passing with **0 errors and 0 warnings**.
+   - Frontend production build compiles cleanly via Vite v8 in 2.10s.
 
 ---
 
-## Milestone 7: Production Rollout & Cloud Deployment (Next)
-1. **Cloud Service Setup:**
-   - MongoDB Atlas network & user configuration.
-   - Backend deployment on Render per `DEPLOYMENT.md`.
-   - Frontend deployment on Vercel per `DEPLOYMENT.md`.
-2. **Production Smoke Testing:**
-   - Verify health check endpoints (`/api/v1/health` and `/api/health`).
-   - Run end-to-end smoke verification on live domain.
+## Milestone 7: Production Rollout, Performance & Acceptance (In Progress)
+1. **Stage 7.1 — Documentation Synchronization (Completed):**
+   - Synchronized all architecture, progress, audit, and deployment documents (`PROJECT_PROGRESS.md`, `PROJECT_AUDIT.md`, `IMPLEMENTATION_PLAN.md`, `README.md`, `DEPLOYMENT.md`) with the latest verified state (commit `85dcaf9`, 183 automated tests).
+   - Explicitly recorded live URLs (`https://ricozhintel.vercel.app` and `https://ricozhintel-api.onrender.com`).
+   - Accurately distinguished automated test coverage, local verification, and production smoke-testing.
+2. **Stage 7.2 — Frontend Bundle Size Optimization via Route-Level Code Splitting (Completed):**
+   - Implemented dynamic imports with `React.lazy()` and `Suspense` in `client/src/routes/AppRoutes.jsx` across all page routes (`DashboardPage`, `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, `KpiDetailPage`, `LoginPage`, `NotFoundPage`).
+   - Completely resolved Vite's 500 kB chunk threshold advisory: largest generated chunk reduced from ~750 kB to 367.57 kB (`DashboardPage`), with main entry chunk at 318.41 kB.
+   - All 128 frontend tests and 55 backend tests remain 100% passing.
+3. **Stage 7.3 — Production End-to-End Smoke Testing & Final Acceptance (Pending):**
+   - Infrastructure, CORS, routing, and unauthenticated API checks verified as passing.
+   - Live authenticated user workflows (login, Department CRUD, KPI Quick Value check-ins) pending test credentials/operator manual verification.
