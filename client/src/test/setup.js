@@ -40,11 +40,18 @@ window.URL.revokeObjectURL = vi.fn();
 // Prevent jsdom "Not implemented: navigation to another Document" during anchor click
 HTMLAnchorElement.prototype.click = vi.fn();
 
-// Suppress harmless Recharts container size warning in jsdom
+// Suppress harmless Recharts container size warning in jsdom (where elements have 0x0 dimensions)
 const originalConsoleError = console.error;
 console.error = (...args) => {
   if (typeof args[0] === 'string' && args[0].includes('The width(0) and height(0) of chart should be greater than 0')) {
     return;
   }
   originalConsoleError(...args);
+};
+const originalConsoleWarn = console.warn;
+console.warn = (...args) => {
+  if (typeof args[0] === 'string' && args[0].includes('The width(0) and height(0) of chart should be greater than 0')) {
+    return;
+  }
+  originalConsoleWarn(...args);
 };
