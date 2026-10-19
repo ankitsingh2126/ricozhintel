@@ -6,7 +6,7 @@
 // - Delete with confirm dialog
 // - Toasts on success and failure
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, User, Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
@@ -15,16 +15,21 @@ import ErrorState from '../components/common/ErrorState.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import Pagination from '../components/common/Pagination.jsx';
-import DepartmentFormModal, {
-  EMPTY_DEPARTMENT_FORM,
-} from '../components/departments/DepartmentFormModal.jsx';
-import { useToast } from '../context/ToastContext.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import DepartmentFormModal from '../components/departments/DepartmentFormModal.jsx';
+import { EMPTY_DEPARTMENT_FORM } from '../constants/formConstants.js';
+import { useToast } from '../context/useToast.js';
+import { useAuth } from '../context/useAuth.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { apiClient } from '../services/apiClient.js';
 import { fetchDepartments } from '../services/departmentService.js';
 
 const PAGE_SIZE = 6;
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
 
 const formatError = (err) => {
   if (!err) return 'Something went wrong';
@@ -39,23 +44,44 @@ export default function DepartmentsPage() {
   const { isAdmin } = useAuth();
 
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
 
-  // Reset to page 1 whenever the search term changes.
-  useEffect(() => {
+  const handleSearchChange = (value) => {
+    setSearch(value);
     setPage(1);
-  }, [search]);
+  };
 
-  const fetcher = useCallback(
-    () =>
-      fetchDepartments({
-        search: search || undefined,
-        page,
-        limit: PAGE_SIZE,
-      }),
-    [search, page]
+  const handleStatusChange = (value) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const fetcher = useCallback(() => fetchDepartments({ limit: 100 }), []);
+  const { data, loading, error, refetch } = useFetch(fetcher, []);
+
+  const allDepartments = data?.items || [];
+
+  const filteredDepartments = allDepartments.filter((dept) => {
+    const term = search.trim().toLowerCase();
+    const matchesSearch =
+      !term ||
+      (dept.name && dept.name.toLowerCase().includes(term)) ||
+      (dept.code && dept.code.toLowerCase().includes(term));
+
+    const matchesStatus = !status || dept.status === status;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalItems = filteredDepartments.length;
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedDepartments = filteredDepartments.slice(
+    startIndex,
+    startIndex + PAGE_SIZE
   );
-  const { data, loading, error, refetch } = useFetch(fetcher, [search, page]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -129,11 +155,10 @@ export default function DepartmentsPage() {
       setDeleteTarget(null);
 
       // If we just deleted the last item on this page, step back one page.
-      if (data && data.items.length === 1 && page > 1) {
+      if (paginatedDepartments.length === 1 && currentPage > 1) {
         setPage((p) => p - 1);
-      } else {
-        refetch();
       }
+      refetch();
     } catch (err) {
       showError(formatError(err));
     } finally {
@@ -163,51 +188,76 @@ export default function DepartmentsPage() {
         }
       />
 
-      <div className="relative mb-4 max-w-md">
-        <Search
-          size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-        />
-        <input
-          type="text"
-          placeholder="Search by name or code…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-9 py-2 border border-slate-200 rounded-md text-sm
-                     bg-white focus:outline-none focus:ring-2 focus:ring-brand-500
-                     focus:border-transparent"
-        />
-        {hasSearch && (
-          <button
-            type="button"
-            onClick={() => setSearch('')}
-            aria-label="Clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400
-                       hover:text-slate-700"
-          >
-            <X size={14} />
-          </button>
-        )}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 max-w-xl">
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="text"
+            placeholder="Search by name or code…"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-9 pr-9 py-2 border border-slate-200 rounded-md text-sm
+                       bg-white focus:outline-none focus:ring-2 focus:ring-brand-500
+                       focus:border-transparent"
+          />
+          {hasSearch && (
+            <button
+              type="button"
+              onClick={() => handleSearchChange('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400
+                         hover:text-slate-700 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <select
+          value={status}
+          onChange={(e) => handleStatusChange(e.target.value)}
+          aria-label="Filter by department status"
+          className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-white
+                     text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500
+                     focus:border-transparent cursor-pointer"
+        >
+          {STATUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading && <Loader label="Loading departments…" />}
       {!loading && error && <ErrorState message={error.message} onRetry={refetch} />}
 
-      {!loading && !error && data && data.items.length === 0 && (
+      {!loading && !error && allDepartments.length === 0 && (
         <EmptyState
-          title={hasSearch ? 'No matching departments' : 'No departments yet'}
+          title="No departments yet"
+          description="Click “Add Department” above to create the first one."
+        />
+      )}
+
+      {!loading && !error && allDepartments.length > 0 && paginatedDepartments.length === 0 && (
+        <EmptyState
+          title="No matching departments"
           description={
-            hasSearch
-              ? `No department matches “${search}”. Try a different term.`
-              : 'Click “Add Department” above to create the first one.'
+            hasSearch && status
+              ? `No ${status} departments match “${search.trim()}”. Try adjusting your filters.`
+              : hasSearch
+                ? `No department matches “${search.trim()}”. Try a different term.`
+                : `No ${status} departments found. Try selecting a different status.`
           }
         />
       )}
 
-      {!loading && !error && data && data.items.length > 0 && (
+      {!loading && !error && paginatedDepartments.length > 0 && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.items.map((dept) => (
+            {paginatedDepartments.map((dept) => (
               <div
                 key={dept._id}
                 className="bg-white border border-slate-200 rounded-lg p-4 hover:border-brand-400 hover:shadow-sm transition"
@@ -269,10 +319,10 @@ export default function DepartmentsPage() {
           </div>
 
           <Pagination
-            page={data.meta.page}
-            pages={data.meta.pages}
-            total={data.meta.total}
-            limit={data.meta.limit}
+            page={currentPage}
+            pages={totalPages}
+            total={totalItems}
+            limit={PAGE_SIZE}
             onChange={setPage}
           />
         </>
