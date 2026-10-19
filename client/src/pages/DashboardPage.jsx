@@ -14,7 +14,7 @@ import {
   fetchKpis,
 } from '../services/kpiService.js';
 import { fetchDepartments } from '../services/departmentService.js';
-import { useToast } from '../context/ToastContext.jsx';
+import { useToast } from '../context/useToast.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { formatNumber, formatPercent } from '../utils/formatters.js';
 import { generateCsv, downloadCsv, getExportFilename } from '../utils/csvExport.js';

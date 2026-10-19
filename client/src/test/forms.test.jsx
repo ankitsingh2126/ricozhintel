@@ -1,10 +1,11 @@
 // Tests for department, KPI, and quick-value modals.
 
 import { describe, it, expect, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import DepartmentFormModal, { EMPTY_DEPARTMENT_FORM } from '../components/departments/DepartmentFormModal.jsx';
-import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
+import DepartmentFormModal from '../components/departments/DepartmentFormModal.jsx';
+import KpiFormModal from '../components/kpis/KpiFormModal.jsx';
+import { EMPTY_DEPARTMENT_FORM, EMPTY_KPI_FORM } from '../constants/formConstants.js';
 import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
 import { renderWithProviders } from './testUtils.jsx';
 

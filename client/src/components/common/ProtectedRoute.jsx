@@ -2,7 +2,7 @@
 // Redirects unauthenticated users to /login preserving target route in state.
 
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useAuth } from '../../context/useAuth.js';
 import Loader from './Loader.jsx';
 
 export default function ProtectedRoute({ children }) {

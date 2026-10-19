@@ -5,7 +5,7 @@
 // - Delete with confirm dialog
 // - Toasts on success and failure
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Pencil, Trash2, Gauge, Download } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader.jsx';
@@ -16,10 +16,11 @@ import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import Pagination from '../components/common/Pagination.jsx';
 import StatusBadge from '../components/common/StatusBadge.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
-import KpiFormModal, { EMPTY_KPI_FORM } from '../components/kpis/KpiFormModal.jsx';
+import KpiFormModal from '../components/kpis/KpiFormModal.jsx';
+import { EMPTY_KPI_FORM } from '../constants/formConstants.js';
 import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
-import { useToast } from '../context/ToastContext.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../context/useToast.js';
+import { useAuth } from '../context/useAuth.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { apiClient } from '../services/apiClient.js';
 import { fetchKpis } from '../services/kpiService.js';
@@ -61,10 +62,20 @@ export default function KpisPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  // Reset to page 1 whenever any filter changes.
-  useEffect(() => {
+  const handleSearchChange = (val) => {
+    setSearch(val);
     setPage(1);
-  }, [status, period, search]);
+  };
+
+  const handleStatusChange = (val) => {
+    setStatus(val);
+    setPage(1);
+  };
+
+  const handlePeriodChange = (val) => {
+    setPeriod(val);
+    setPage(1);
+  };
 
   const fetcher = useCallback(
     () =>
@@ -281,14 +292,14 @@ export default function KpisPage() {
             type="text"
             placeholder="Search by name or code…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md text-sm
                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
         </div>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => handleStatusChange(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-white
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
         >
@@ -298,7 +309,7 @@ export default function KpisPage() {
         </select>
         <select
           value={period}
-          onChange={(e) => setPeriod(e.target.value)}
+          onChange={(e) => handlePeriodChange(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-md text-sm bg-white
                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
         >

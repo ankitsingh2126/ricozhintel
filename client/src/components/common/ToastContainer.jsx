@@ -1,8 +1,8 @@
-﻿// Renders the toast stack in the top-right corner.
+// Renders the toast stack in the top-right corner.
 // Reads toasts from ToastContext — no props needed.
 
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
-import { useToast } from '../../context/ToastContext.jsx';
+import { useToast } from '../../context/useToast.js';
 
 const ICONS = {
   success: CheckCircle2,

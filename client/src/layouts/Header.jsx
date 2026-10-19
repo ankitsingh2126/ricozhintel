@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Menu, UserCircle, LogOut, Shield } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/useAuth.js';
 
 export default function Header({ title = 'Dashboard', onMenuClick }) {
   const { user, logout, isAdmin } = useAuth();

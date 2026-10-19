@@ -1,10 +1,9 @@
 // Authentication Context and Provider.
 // Manages authentication state, user session persistence, and RBAC helpers.
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { authService } from '../services/authService.js';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './useAuth.js';
 
 const TOKEN_KEY = 'ricozhintel_token';
 const USER_KEY = 'ricozhintel_user';
@@ -86,13 +85,3 @@ export function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
-
-export { AuthContext };

@@ -1,4 +1,4 @@
-﻿// Toast notification system.
+// Toast notification system.
 // Usage:
 //   const { showSuccess, showError, showInfo } = useToast();
 //   showSuccess('Department saved');
@@ -6,9 +6,8 @@
 //
 // Toasts auto-dismiss after 4 seconds and can be closed manually.
 
-import { createContext, useCallback, useContext, useState } from 'react';
-
-const ToastContext = createContext(null);
+import { useCallback, useState } from 'react';
+import { ToastContext } from './useToast.js';
 
 let nextId = 1;
 
@@ -36,14 +35,5 @@ export function ToastProvider({ children }) {
   const showInfo = useCallback((msg, duration) => push('info', msg, duration), [push]);
 
   const value = { toasts, showSuccess, showError, showInfo, remove };
-
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
-}
-
-export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    throw new Error('useToast must be used inside <ToastProvider>');
-  }
-  return ctx;
 }

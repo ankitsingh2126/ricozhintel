@@ -2,8 +2,9 @@
 // Used by both the KPIs list page and the KPI detail page.
 // Owns form state, client-side validation, and unsaved-changes guard.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../common/Modal.jsx';
+import { EMPTY_KPI_FORM } from '../../constants/formConstants.js';
 
 const STATUS_FORM_OPTIONS = [
   { value: 'on_track',  label: 'On Track' },
@@ -23,19 +24,6 @@ const STATUS_RULE_OPTIONS = [
   { value: 'lower_is_better',  label: 'Lower is better (e.g. response time)' },
 ];
 
-export const EMPTY_KPI_FORM = {
-  name: '',
-  code: '',
-  department: '',
-  unit: '%',
-  target: '',
-  currentValue: '0',
-  status: 'on_track',
-  period: 'monthly',
-  owner: '',
-  statusRule: 'higher_is_better',
-};
-
 const isDirty = (a, b) => {
   if (!a || !b) return false;
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
@@ -49,20 +37,24 @@ export default function KpiFormModal({
   isOpen,
   onClose,
   onSubmit,
-  initialValues,
+  initialValues = EMPTY_KPI_FORM,
   mode,
   submitting,
   departments,
 }) {
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevInitialValues, setPrevInitialValues] = useState(initialValues);
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
+  if (isOpen !== prevIsOpen || initialValues !== prevInitialValues) {
+    setPrevIsOpen(isOpen);
+    setPrevInitialValues(initialValues);
     if (isOpen) {
       setValues(initialValues);
       setErrors({});
     }
-  }, [isOpen, initialValues]);
+  }
 
   const setField = (field, value) => {
     setValues((v) => ({ ...v, [field]: value }));

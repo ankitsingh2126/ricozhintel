@@ -1,24 +1,44 @@
-﻿// Data-fetch hook.
+// Data-fetch hook.
 //
 // Returns { data, loading, error, refetch }.
 //
-// Race-safe: only the latest invocation of `load()` is allowed to update state.
-// Stale responses from prior fetches are ignored. The hook also ignores late
-// updates after the component unmounts, so React does not warn about setting
-// state on an unmounted component.
+// Race-safe: only the latest invocation of load/fetch is allowed to update state.
+// Stale responses from prior fetches are ignored. The hook also drops late
+// updates after the component unmounts.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+const areDepsEqual = (prevDeps, nextDeps) => {
+  if (prevDeps === nextDeps) return true;
+  if (!prevDeps || !nextDeps || prevDeps.length !== nextDeps.length) return false;
+  for (let i = 0; i < prevDeps.length; i++) {
+    if (!Object.is(prevDeps[i], nextDeps[i])) return false;
+  }
+  return true;
+};
 
 export const useFetch = (fetcher, deps = []) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [depKey, setDepKey] = useState(0);
+  const [prevDeps, setPrevDeps] = useState(deps);
 
-  // Monotonic request id. Every `load()` bumps it; older responses are ignored.
+  const fetcherRef = useRef(fetcher);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
+
   const requestIdRef = useRef(0);
-
-  // Track whether the component is still mounted, so late responses are dropped.
   const isMountedRef = useRef(true);
+
+  if (!areDepsEqual(prevDeps, deps)) {
+    setPrevDeps(deps);
+    setDepKey((k) => k + 1);
+    setLoading(true);
+    setError(null);
+  }
+
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -26,19 +46,19 @@ export const useFetch = (fetcher, deps = []) => {
     };
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoFetcher = useCallback(fetcher, deps);
-
-  const load = useCallback(async () => {
+  const executeFetch = useCallback(async (isManual = false) => {
     const requestId = ++requestIdRef.current;
-
-    setLoading(true);
-    setError(null);
+    if (isManual) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
-      const result = await memoFetcher();
+      const result = await fetcherRef.current();
       if (requestId !== requestIdRef.current || !isMountedRef.current) return;
       setData(result);
+      setError(null);
+      return result;
     } catch (err) {
       if (requestId !== requestIdRef.current || !isMountedRef.current) return;
       setError(err);
@@ -47,11 +67,36 @@ export const useFetch = (fetcher, deps = []) => {
         setLoading(false);
       }
     }
-  }, [memoFetcher]);
+  }, []);
+
+  const refetch = useCallback(() => {
+    return executeFetch(true);
+  }, [executeFetch]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let ignore = false;
+    const requestId = ++requestIdRef.current;
 
-  return { data, loading, error, refetch: load };
+    (async () => {
+      try {
+        const result = await fetcherRef.current();
+        if (ignore || requestId !== requestIdRef.current || !isMountedRef.current) return;
+        setData(result);
+        setError(null);
+      } catch (err) {
+        if (ignore || requestId !== requestIdRef.current || !isMountedRef.current) return;
+        setError(err);
+      } finally {
+        if (!ignore && requestId === requestIdRef.current && isMountedRef.current) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [depKey]);
+
+  return { data, loading, error, refetch };
 };

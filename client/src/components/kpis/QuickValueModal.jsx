@@ -2,7 +2,7 @@
 // Allows users to update just the currentValue (and optionally status) of a KPI
 // without going through the entire full-edit form.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../common/Modal.jsx';
 
 export default function QuickValueModal({
@@ -12,17 +12,25 @@ export default function QuickValueModal({
   kpi,
   submitting = false,
 }) {
-  const [currentValue, setCurrentValue] = useState('');
-  const [status, setStatus] = useState('on_track');
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevKpi, setPrevKpi] = useState(kpi);
+  const [currentValue, setCurrentValue] = useState(
+    isOpen && kpi ? String(kpi.currentValue ?? '0') : ''
+  );
+  const [status, setStatus] = useState(
+    isOpen && kpi && kpi.status ? kpi.status : 'on_track'
+  );
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  if (isOpen !== prevIsOpen || kpi !== prevKpi) {
+    setPrevIsOpen(isOpen);
+    setPrevKpi(kpi);
     if (isOpen && kpi) {
       setCurrentValue(String(kpi.currentValue ?? '0'));
       setStatus(kpi.status || 'on_track');
       setError('');
     }
-  }, [isOpen, kpi]);
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault();

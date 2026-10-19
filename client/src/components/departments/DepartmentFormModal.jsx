@@ -2,16 +2,9 @@
 // Used by the Departments page for create and edit flows.
 // Owns form state, client-side validation, and unsaved-changes guard.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../common/Modal.jsx';
-
-export const EMPTY_DEPARTMENT_FORM = {
-  name: '',
-  code: '',
-  head: '',
-  description: '',
-  status: 'active',
-};
+import { EMPTY_DEPARTMENT_FORM } from '../../constants/formConstants.js';
 
 const isDirty = (a, b) => {
   if (!a || !b) return false;
@@ -30,15 +23,19 @@ export default function DepartmentFormModal({
   mode = 'create',
   submitting = false,
 }) {
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevInitialValues, setPrevInitialValues] = useState(initialValues);
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
+  if (isOpen !== prevIsOpen || initialValues !== prevInitialValues) {
+    setPrevIsOpen(isOpen);
+    setPrevInitialValues(initialValues);
     if (isOpen) {
       setValues(initialValues);
       setErrors({});
     }
-  }, [isOpen, initialValues]);
+  }
 
   const setField = (field, value) => {
     setValues((v) => ({ ...v, [field]: value }));

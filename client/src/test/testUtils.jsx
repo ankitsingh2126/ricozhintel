@@ -3,7 +3,7 @@
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
-import { AuthContext } from '../context/AuthContext.jsx';
+import { AuthContext } from '../context/useAuth.js';
 import { ToastProvider } from '../context/ToastContext.jsx';
 
 export const mockAdminUser = {
