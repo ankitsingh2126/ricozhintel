@@ -182,11 +182,11 @@ export default function KpisPage() {
     }
   };
 
-  const handleQuickValueUpdate = async ({ currentValue, status }) => {
+  const handleQuickValueUpdate = async ({ currentValue, status, note }) => {
     if (!quickValueTarget) return;
     setSubmitting(true);
     try {
-      await apiClient.patch(`/kpis/${quickValueTarget._id}`, { currentValue, status });
+      await apiClient.patch(`/kpis/${quickValueTarget._id}`, { currentValue, status, note });
       showSuccess(`KPI "${quickValueTarget.name}" value updated`);
       setQuickValueTarget(null);
       refetch();

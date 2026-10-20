@@ -20,6 +20,7 @@ export default function QuickValueModal({
   const [status, setStatus] = useState(
     isOpen && kpi && kpi.status ? kpi.status : 'on_track'
   );
+  const [note, setNote] = useState('');
   const [error, setError] = useState('');
 
   if (isOpen !== prevIsOpen || kpi !== prevKpi) {
@@ -28,6 +29,7 @@ export default function QuickValueModal({
     if (isOpen && kpi) {
       setCurrentValue(String(kpi.currentValue ?? '0'));
       setStatus(kpi.status || 'on_track');
+      setNote('');
       setError('');
     }
   }
@@ -40,9 +42,15 @@ export default function QuickValueModal({
       return;
     }
 
+    if (note.length > 500) {
+      setError('Note must be at most 500 characters');
+      return;
+    }
+
     onSubmit({
       currentValue: val,
       status,
+      ...(note.trim() ? { note: note.trim() } : {}),
     });
   };
 
@@ -136,6 +144,25 @@ export default function QuickValueModal({
             <option value="off_track">Off Track</option>
             <option value="completed">Completed</option>
           </select>
+        </div>
+
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <label htmlFor="quick-note" className="block text-sm font-medium text-slate-700">
+              Change note (optional)
+            </label>
+            <span className="text-xs text-slate-400">{`${note.length}/500`}</span>
+          </div>
+          <textarea
+            id="quick-note"
+            rows={2}
+            maxLength={500}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Completed mid-quarter review"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm
+                       focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
         </div>
       </form>
     </Modal>

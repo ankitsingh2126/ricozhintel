@@ -15,10 +15,13 @@ import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import KpiFormModal from '../components/kpis/KpiFormModal.jsx';
 import { EMPTY_KPI_FORM } from '../constants/formConstants.js';
 import QuickValueModal from '../components/kpis/QuickValueModal.jsx';
+import KpiHistoryTimeline from '../components/kpis/KpiHistoryTimeline.jsx';
+import KpiTrendChart from '../components/charts/KpiTrendChart.jsx';
 import { useToast } from '../context/useToast.js';
 import { useAuth } from '../context/useAuth.js';
 import { apiClient } from '../services/apiClient.js';
 import { fetchDepartments } from '../services/departmentService.js';
+import { fetchKpiHistory } from '../services/kpiService.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { formatNumber } from '../utils/formatters.js';
 
@@ -43,6 +46,21 @@ export default function KpiDetailPage() {
   }, [id]);
 
   const { data, loading, error, refetch } = useFetch(kpiFetcher, [id]);
+
+  // ---- data: KPI history -----------------------------------------------
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyFetcher = useCallback(
+    () => fetchKpiHistory(id, { page: historyPage, limit: 10 }),
+    [id, historyPage]
+  );
+  const history = useFetch(historyFetcher, [id, historyPage]);
+
+  // ---- data: KPI trend (chronological history up to limit 100) ---------
+  const trendFetcher = useCallback(
+    () => fetchKpiHistory(id, { page: 1, limit: 100 }),
+    [id]
+  );
+  const trendHistory = useFetch(trendFetcher, [id]);
 
   // ---- data: departments (for the edit form dropdown) ------------------
   const deptFetcher = useCallback(() => fetchDepartments({ limit: 100 }), []);
@@ -69,13 +87,15 @@ export default function KpiDetailPage() {
   };
 
   // ---- actions ----------------------------------------------------------
-  const handleQuickValueUpdate = async ({ currentValue, status }) => {
+  const handleQuickValueUpdate = async ({ currentValue, status, note }) => {
     setSubmitting(true);
     try {
-      await apiClient.patch(`/kpis/${id}`, { currentValue, status });
+      await apiClient.patch(`/kpis/${id}`, { currentValue, status, note });
       showSuccess(`KPI value updated to ${currentValue}`);
       setQuickValueOpen(false);
       refetch();
+      history.refetch();
+      trendHistory.refetch();
     } catch (err) {
       showError(formatError(err));
     } finally {
@@ -103,6 +123,8 @@ export default function KpiDetailPage() {
       showSuccess(`KPI "${payload.name}" updated`);
       setFormOpen(false);
       refetch();
+      history.refetch();
+      trendHistory.refetch();
     } catch (err) {
       showError(formatError(err));
     } finally {
@@ -253,6 +275,26 @@ export default function KpiDetailPage() {
               {progress}% of target reached
             </div>
           </div>
+
+          <KpiTrendChart
+            items={trendHistory.data?.items || []}
+            target={data.target}
+            unit={data.unit}
+            loading={trendHistory.loading}
+            error={trendHistory.error}
+            onRetry={trendHistory.refetch}
+          />
+
+          <KpiHistoryTimeline
+            items={history.data?.items || []}
+            meta={history.data?.meta}
+            loading={history.loading}
+            error={history.error}
+            onRetry={history.refetch}
+            page={historyPage}
+            onPageChange={setHistoryPage}
+            unit={data.unit}
+          />
         </div>
       )}
 

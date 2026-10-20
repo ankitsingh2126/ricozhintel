@@ -16,3 +16,8 @@ export const fetchKpis = async (params = {}) => {
   const res = await apiClient.get('/kpis', { params });
   return { items: res.data.data, meta: res.data.meta };
 };
+
+export const fetchKpiHistory = async (kpiId, params = {}) => {
+  const res = await apiClient.get(`/kpis/${kpiId}/history`, { params });
+  return { items: res.data.data, meta: res.data.meta };
+};

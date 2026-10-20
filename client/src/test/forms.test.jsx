@@ -209,5 +209,36 @@ describe('Department and KPI Modals', () => {
         status: 'completed',
       });
     });
+
+    it('submits optional change note when provided and enforces character counter', async () => {
+      const user = userEvent.setup();
+      const handleSubmit = vi.fn();
+
+      renderWithProviders(
+        <QuickValueModal
+          isOpen={true}
+          onClose={vi.fn()}
+          onSubmit={handleSubmit}
+          kpi={mockKpi}
+        />
+      );
+
+      expect(screen.getByLabelText(/change note \(optional\)/i)).toBeInTheDocument();
+      expect(screen.getByText('0/500')).toBeInTheDocument();
+
+      const noteInput = screen.getByLabelText(/change note \(optional\)/i);
+      await user.type(noteInput, 'Q3 sprint push adjustment');
+
+      expect(screen.getByText('25/500')).toBeInTheDocument();
+
+      const saveBtn = screen.getByRole('button', { name: /update value/i });
+      await user.click(saveBtn);
+
+      expect(handleSubmit).toHaveBeenCalledWith({
+        currentValue: 12000,
+        status: 'on_track',
+        note: 'Q3 sprint push adjustment',
+      });
+    });
   });
 });

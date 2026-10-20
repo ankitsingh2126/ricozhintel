@@ -9,6 +9,7 @@ import {
   createKpiRules,
   updateKpiRules,
   kpiIdParamRule,
+  kpiHistoryRules,
 } from '../validators/kpiValidator.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 import { authenticate, authorize } from '../middleware/auth.js';
@@ -27,6 +28,14 @@ router
   .route('/')
   .get(kpiController.getAllKpis)
   .post(authorize('admin'), createKpiRules, validateRequest, kpiController.createKpi);
+
+// History sub-route for a specific KPI (accessible to all authenticated users)
+router.get(
+  '/:id/history',
+  kpiHistoryRules,
+  validateRequest,
+  kpiController.getKpiHistory
+);
 
 // Item routes — PUT is an alias for PATCH (partial update semantics).
 router

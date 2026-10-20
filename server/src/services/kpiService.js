@@ -4,6 +4,7 @@
 import mongoose from 'mongoose';
 import { Kpi } from '../models/Kpi.js';
 import { Department } from '../models/Department.js';
+import { KpiHistory } from '../models/KpiHistory.js';
 import { ApiError } from '../utils/ApiError.js';
 import { withAchievement, calculateAchievement } from '../utils/achievement.js';
 
@@ -66,52 +67,301 @@ export const getKpiById = async (id) => {
   return decorate(kpi);
 };
 
+// Check if the current MongoDB connection topology supports multi-document transactions.
+// Replica sets (such as MongoDB Atlas) support transactions; standalone instances (such as test runners) do not.
+export const supportsTransactions = () => {
+  const topology = mongoose.connection.client?.topology?.description;
+  if (!topology) return false;
+  const type = topology.type;
+  return (
+    type === 'ReplicaSetWithPrimary' ||
+    type === 'ReplicaSetNoPrimary' ||
+    type === 'Sharded' ||
+    Boolean(topology.setName)
+  );
+};
+
+// Safely abort a transaction without letting abort errors mask the original operational error
+export const safeAbortTransaction = async (session) => {
+  if (session && typeof session.inTransaction === 'function' && session.inTransaction()) {
+    try {
+      await session.abortTransaction();
+    } catch (abortErr) {
+      console.error('[db] Error while aborting transaction:', abortErr.message);
+    }
+  }
+};
+
 // ---- write --------------------------------------------------------------
 
-export const createKpi = async (payload) => {
-  const dept = await Department.findById(payload.department);
+export const createKpi = async (payload, user = null) => {
+  const { note, ...kpiData } = payload;
+
+  const dept = await Department.findById(kpiData.department);
   if (!dept) {
     throw ApiError.badRequest('Referenced department does not exist');
   }
 
+  const baselineHistoryData = (kpiId, kpiDoc) => ({
+    kpi: kpiId,
+    previousValue: 0,
+    newValue: kpiDoc.currentValue ?? 0,
+    target: kpiDoc.target,
+    status: kpiDoc.status || 'on_track',
+    changedBy: user?._id || null,
+    changedByName: user?.name || 'System',
+    note: note ? String(note).trim() : 'Initial baseline',
+    changeType: 'initial',
+  });
+
+  if (supportsTransactions()) {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const [kpi] = await Kpi.create([kpiData], { session });
+      await KpiHistory.create([baselineHistoryData(kpi._id, kpi)], { session });
+      await session.commitTransaction();
+      await kpi.populate('department', 'name code');
+      return decorate(kpi);
+    } catch (err) {
+      await safeAbortTransaction(session);
+      handleDuplicate(err);
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  // Standalone fallback with compensating rollback
+  let kpi;
   try {
-    const kpi = await Kpi.create(payload);
-    await kpi.populate('department', 'name code');
-    return decorate(kpi);
+    kpi = await Kpi.create(kpiData);
   } catch (err) {
     handleDuplicate(err);
   }
+
+  try {
+    await KpiHistory.create(baselineHistoryData(kpi._id, kpi));
+  } catch (historyErr) {
+    let rollbackErr = null;
+    try {
+      await Kpi.findByIdAndDelete(kpi._id);
+    } catch (rbErr) {
+      rollbackErr = rbErr;
+      console.error(
+        `[db] Critical: Failed to delete KPI ${kpi._id} after initial history write failure:`,
+        rbErr.message
+      );
+    }
+
+    if (rollbackErr) {
+      const compositeError = ApiError.internal(
+        `Failed to record initial KPI history (${historyErr.message}) and compensating rollback failed (${rollbackErr.message})`
+      );
+      compositeError.originalError = historyErr;
+      compositeError.rollbackError = rollbackErr;
+      throw compositeError;
+    }
+
+    const error = ApiError.internal(
+      'Failed to record initial KPI history; creation rolled back'
+    );
+    error.originalError = historyErr;
+    throw error;
+  }
+
+  await kpi.populate('department', 'name code');
+  return decorate(kpi);
 };
 
-export const updateKpi = async (id, payload) => {
-  if (payload.department) {
-    const dept = await Department.findById(payload.department);
+export const updateKpi = async (id, payload, user = null) => {
+  const { note, ...kpiData } = payload;
+
+  if (kpiData.department) {
+    const dept = await Department.findById(kpiData.department);
     if (!dept) {
       throw ApiError.badRequest('Referenced department does not exist');
     }
   }
 
+  const existingKpi = await Kpi.findById(id);
+  if (!existingKpi) {
+    throw ApiError.notFound('KPI not found');
+  }
+
+  const isValueChanging =
+    kpiData.currentValue !== undefined &&
+    Number(kpiData.currentValue) !== existingKpi.currentValue;
+
+  if (!isValueChanging) {
+    // Metadata-only edit: no history record created
+    try {
+      const kpi = await Kpi.findByIdAndUpdate(id, kpiData, {
+        new: true,
+        runValidators: true,
+      }).populate('department', 'name code');
+      return decorate(kpi);
+    } catch (err) {
+      handleDuplicate(err);
+    }
+  }
+
+  // Value is changing: record history alongside KPI update
+  const newTarget = kpiData.target !== undefined ? Number(kpiData.target) : existingKpi.target;
+  const newStatus = kpiData.status || existingKpi.status;
+  const historyData = {
+    kpi: id,
+    previousValue: existingKpi.currentValue,
+    newValue: Number(kpiData.currentValue),
+    target: newTarget,
+    status: newStatus,
+    changedBy: user?._id || null,
+    changedByName: user?.name || 'System',
+    note: note ? String(note).trim() : '',
+    changeType: 'value_update',
+  };
+
+  if (supportsTransactions()) {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const updated = await Kpi.findByIdAndUpdate(id, kpiData, {
+        new: true,
+        runValidators: true,
+        session,
+      }).populate('department', 'name code');
+
+      await KpiHistory.create([historyData], { session });
+      await session.commitTransaction();
+      return decorate(updated);
+    } catch (err) {
+      await safeAbortTransaction(session);
+      handleDuplicate(err);
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  // Standalone fallback with compensating rollback
+  let updated;
   try {
-    const kpi = await Kpi.findByIdAndUpdate(id, payload, {
+    updated = await Kpi.findByIdAndUpdate(id, kpiData, {
       new: true,
       runValidators: true,
     }).populate('department', 'name code');
-
-    if (!kpi) {
-      throw ApiError.notFound('KPI not found');
-    }
-    return decorate(kpi);
   } catch (err) {
     handleDuplicate(err);
   }
+
+  try {
+    await KpiHistory.create(historyData);
+  } catch (historyErr) {
+    // Safe, explicit rollback: restore every field modified by kpiData
+    const rollbackData = {};
+    const unsetData = {};
+    for (const key of Object.keys(kpiData)) {
+      if (existingKpi[key] !== undefined) {
+        rollbackData[key] = existingKpi[key];
+      } else {
+        unsetData[key] = 1;
+      }
+    }
+    const rollbackUpdate = { ...rollbackData };
+    if (Object.keys(unsetData).length > 0) {
+      rollbackUpdate.$unset = unsetData;
+    }
+
+    let rollbackErr = null;
+    try {
+      await Kpi.findByIdAndUpdate(id, rollbackUpdate);
+    } catch (rbErr) {
+      rollbackErr = rbErr;
+      console.error(
+        `[db] Critical: Failed to rollback KPI ${id} after history write failure:`,
+        rbErr.message
+      );
+    }
+
+    if (rollbackErr) {
+      const compositeError = ApiError.internal(
+        `Failed to record KPI history (${historyErr.message}) and compensating rollback failed (${rollbackErr.message})`
+      );
+      compositeError.originalError = historyErr;
+      compositeError.rollbackError = rollbackErr;
+      throw compositeError;
+    }
+
+    const error = ApiError.internal('Failed to record KPI history; update rolled back');
+    error.originalError = historyErr;
+    throw error;
+  }
+
+  return decorate(updated);
 };
 
 export const deleteKpi = async (id) => {
+  if (supportsTransactions()) {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      const kpi = await Kpi.findByIdAndDelete(id, { session });
+      if (!kpi) {
+        throw ApiError.notFound('KPI not found');
+      }
+      await KpiHistory.deleteMany({ kpi: id }, { session });
+      await session.commitTransaction();
+      return kpi;
+    } catch (err) {
+      await safeAbortTransaction(session);
+      throw err;
+    } finally {
+      await session.endSession();
+    }
+  }
+
   const kpi = await Kpi.findByIdAndDelete(id);
   if (!kpi) {
     throw ApiError.notFound('KPI not found');
   }
+
+  try {
+    await KpiHistory.deleteMany({ kpi: id });
+  } catch (cleanupErr) {
+    console.error(
+      `[db] Warning: KPI ${id} was deleted, but cascading history cleanup failed:`,
+      cleanupErr.message
+    );
+    const error = ApiError.internal(
+      `KPI was deleted, but cascading history cleanup encountered an error: ${cleanupErr.message}`
+    );
+    error.kpi = kpi;
+    error.originalError = cleanupErr;
+    throw error;
+  }
+
   return kpi;
+};
+
+export const getKpiHistory = async (kpiId, { page = 1, limit = 20 } = {}) => {
+  const kpi = await Kpi.findById(kpiId);
+  if (!kpi) {
+    throw ApiError.notFound('KPI not found');
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    KpiHistory.find({ kpi: kpiId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('changedBy', 'name email role'),
+    KpiHistory.countDocuments({ kpi: kpiId }),
+  ]);
+
+  return {
+    items,
+    meta: { page, limit, total, pages: Math.ceil(total / limit) },
+  };
 };
 
 // ---- summary ------------------------------------------------------------

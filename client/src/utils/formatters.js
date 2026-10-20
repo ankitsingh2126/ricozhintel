@@ -1,4 +1,4 @@
-﻿// Small formatting helpers used across the app.
+// Small formatting helpers used across the app.
 
 export const formatNumber = (n) => {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—';
@@ -8,6 +8,25 @@ export const formatNumber = (n) => {
 export const formatPercent = (n) => {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—';
   return `${Math.round(n)}%`;
+};
+
+export const formatDate = (dateString) => {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(d);
+};
+
+export const CHANGE_TYPE_LABELS = {
+  initial: 'Initial Baseline',
+  value_update: 'Value Update',
+  full_edit: 'Full Edit',
 };
 
 export const STATUS_LABELS = {

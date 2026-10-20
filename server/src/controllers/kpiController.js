@@ -58,7 +58,7 @@ export const getKpi = async (req, res, next) => {
 // POST /api/v1/kpis
 export const createKpi = async (req, res, next) => {
   try {
-    const kpi = await kpiService.createKpi(req.body);
+    const kpi = await kpiService.createKpi(req.body, req.user);
     return sendSuccess(res, kpi, undefined, 201);
   } catch (err) {
     next(err);
@@ -68,8 +68,22 @@ export const createKpi = async (req, res, next) => {
 // PATCH or PUT /api/v1/kpis/:id
 export const updateKpi = async (req, res, next) => {
   try {
-    const kpi = await kpiService.updateKpi(req.params.id, req.body);
+    const kpi = await kpiService.updateKpi(req.params.id, req.body, req.user);
     return sendSuccess(res, kpi);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/v1/kpis/:id/history
+export const getKpiHistory = async (req, res, next) => {
+  try {
+    const { page, limit } = req.query;
+    const { items, meta } = await kpiService.getKpiHistory(req.params.id, {
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+    });
+    return sendSuccess(res, items, meta);
   } catch (err) {
     next(err);
   }

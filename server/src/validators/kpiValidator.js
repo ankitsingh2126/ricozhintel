@@ -1,7 +1,7 @@
-﻿// Request validation rules for KPI endpoints.
+// Request validation rules for KPI endpoints.
 // Code field allows letters, digits, hyphens, and underscores (e.g. SAL-REV).
 
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 
 const CODE_REGEX = /^[A-Za-z0-9_-]+$/;
 
@@ -56,6 +56,10 @@ const optionalRules = () => [
     .optional()
     .isIn(['higher_is_better', 'lower_is_better'])
     .withMessage('statusRule must be higher_is_better or lower_is_better'),
+  body('note')
+    .optional()
+    .isString().withMessage('note must be a string')
+    .isLength({ max: 500 }).withMessage('note must be at most 500 characters'),
 ];
 
 export const createKpiRules = [
@@ -78,4 +82,14 @@ export const updateKpiRules = [
 
 export const kpiIdParamRule = [
   param('id').isMongoId().withMessage('invalid kpi id'),
+];
+
+export const kpiHistoryRules = [
+  param('id').isMongoId().withMessage('invalid kpi id'),
+  query('page')
+    .optional()
+    .isInt({ min: 1 }).withMessage('page must be a positive integer'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 }).withMessage('limit must be between 1 and 100'),
 ];
