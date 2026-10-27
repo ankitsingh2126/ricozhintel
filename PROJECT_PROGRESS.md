@@ -1,7 +1,7 @@
 # PROJECT PROGRESS: Ricozhintel
 
 Last Updated: 2026-10-27
-State: Milestone 9 Complete (Stage 9.1 Documentation Synchronization & Stage 9.2 Production Smoke Testing Complete) — 227 Automated Tests Passing
+State: Milestone 10 Complete (Stage 10.1 Backend User Management & Concurrency Hardening, Stage 10.2 Frontend User Service & Navigation, Stage 10.3 Frontend User Management UI, Stage 10.4 Final Tests, Documentation & Audit Complete) — 284 Automated Tests Passing
 Latest Confirmed Git Commit: `154493c` ("feat: add KPI history and trend analytics")
 
 **Live Production Deployments:**
@@ -139,3 +139,34 @@ Latest Confirmed Git Commit: `154493c` ("feat: add KPI history and trend analyti
    - **Local Automated Test Coverage:** Invalid MongoID handling (HTTP 400 VALIDATION_ERROR), nonexistent KPI handling (HTTP 404), pagination validation (HTTP 400), authenticated history reads for Admin and Viewer, and Viewer mutation rejections (HTTP 403 Forbidden) verified locally in Jest test suites without mutating production data.
    - **User-Confirmed Production Flows:** Operator previously manually confirmed authenticated sign-in, history timeline rendering, Quick Value check-ins with change notes, trend analytics with target reference lines, and Viewer UI action hiding on live deployments.
    - **Deferred Testing:** Scripted browser-level automated end-to-end regression suites (Playwright/Cypress) are deferred to the post-MVP roadmap.
+
+---
+
+## Milestone 10: Administrative User Management & Concurrency Hardening (Completed)
+1. **[Stage 10.1 - Completed] Backend User Management API & Concurrency Hardening:**
+   - Extended `User` model with `status: 'active' | 'inactive'` (default `'active'`).
+   - Enforced inactive-account rejection on login (HTTP 403 `ACCOUNT_INACTIVE`) and immediate token rejection in authentication middleware (HTTP 401).
+   - Created `/api/v1/users` router and controller implementing paginated/searchable listing, user creation, profile editing (`name`, `email`), role updates, and status updates.
+   - Implemented MongoDB ACID transaction barrier (`withAdminMutationTransaction` / `withAdminMutationLock`) contending on a shared barrier document in `system_locks` to prevent write skew and serialize concurrent admin demotions/deactivations.
+   - Re-fetches fresh user records and re-evaluates active administrator counts inside transactions to ensure the last active administrator invariant is guaranteed under concurrent requests.
+   - Preserved backward compatibility for `/api/v1/auth/users/:id/role`.
+   - Upgraded test harness in `server/tests/setup.js` to `MongoMemoryReplSet` to test replica-set transaction features locally.
+   - Added 29 comprehensive integration tests in `server/tests/user.management.test.js`, bringing backend suite to **108 passing tests** across 9 suites.
+2. **[Stage 10.2 - Completed] Frontend User Service, Route Protection & Navigation:**
+   - Implemented dedicated `client/src/services/userService.js` client wrapper with query normalization, search, role/status filtering, and error handling.
+   - Added `adminOnly` prop to `ProtectedRoute.jsx` with automatic redirection for non-admin viewers.
+   - Registered `/users` route in `AppRoutes.jsx` with lazy-loading and Suspense.
+   - Added `Users` navigation item with `Users` icon in `Sidebar.jsx`, conditionally rendered only for administrative users.
+   - Added unit and route protection tests in `client/src/test/userService.test.js` (8 tests) and `client/src/test/userNavigation.test.jsx` (5 tests).
+3. **[Stage 10.3 - Completed] Frontend User Management UI:**
+   - Created `UserFormModal.jsx` supporting both user creation (with password, role, status) and profile editing, including input validation and dirty-state guards.
+   - Implemented `UsersPage.jsx` with debounced search, role and status filters, reset button, users table with role-colored avatar badges, status pills, and visual `(You)` indicators.
+   - Integrated `ConfirmDialog` confirmation modals for role promotion/demotion and account activation/deactivation.
+   - Enforced client-side self-demotion and self-deactivation button disables with tooltip explanations.
+   - Handled backend error toasts safely when mutations fail or violate safeguards.
+   - Added 15 comprehensive UI integration tests in `client/src/test/usersPage.test.jsx`.
+4. **[Stage 10.4 - Completed] Final Tests, Documentation & Audit:**
+   - Validated end-to-end API contracts, query parameters, response envelopes, and error codes.
+   - Fixed mock cleanup resilience in `server/tests/kpi.history.service.test.js` with `try ... finally` blocks.
+   - Synchronized all documentation (`README.md`, `DEPLOYMENT.md`, `PROJECT_PROGRESS.md`, `IMPLEMENTATION_PLAN.md`).
+   - Verified 100% test pass rate across all **284 automated tests** (108 backend + 176 frontend) and verified clean Vite production build.

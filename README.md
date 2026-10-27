@@ -296,7 +296,13 @@ Every response uses one of two shapes.
 | POST | `/api/v1/auth/login` | Public | Authenticate user, receive JWT Bearer token |
 | GET | `/api/v1/auth/me` | Authenticated | Fetch current user profile & role |
 | POST | `/api/v1/auth/bootstrap-admin` | Bootstrap Secret | One-time initial production administrator provisioning |
-| PATCH | `/api/v1/auth/users/:id/role` | Admin | Promote or demote user role (`admin` / `viewer`) |
+| PATCH | `/api/v1/auth/users/:id/role` | Admin | Promote or demote user role (`admin` / `viewer`) (backward-compatible alias) |
+| GET | `/api/v1/users` | Admin | Paginated user directory with search, role, and status filtering |
+| POST | `/api/v1/users` | Admin | Create user with explicit role and status |
+| GET | `/api/v1/users/:id` | Admin | Fetch single user details |
+| PATCH | `/api/v1/users/:id` | Admin | Update user profile (`name`, `email`) |
+| PATCH | `/api/v1/users/:id/role` | Admin | Update user role (`admin` / `viewer`) with self-protection & last-admin transaction guards |
+| PATCH | `/api/v1/users/:id/status` | Admin | Update user account status (`active` / `inactive`) with self-protection & last-admin transaction guards |
 | GET | `/api/v1/departments` | Authenticated | List departments (`search`, `page`, `limit`) |
 | GET | `/api/v1/departments/:id` | Authenticated | Fetch one department |
 | POST | `/api/v1/departments` | Admin | Create a department |
@@ -338,11 +344,13 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/v1/kpis?period=quarterly" `
 ### Prerequisites
 
 - **Node.js 20 or later** — verify with `node --version`
-- **MongoDB** running locally on port `27017`. Either install it as a Windows
-  service (verify with `Get-Service MongoDB`) or run it in Docker:
-  ```powershell
-  docker run -d --name ricozhintel-mongo -p 27017:27017 mongo:7
-  ```
+- **MongoDB** running locally on port `27017`. MongoDB 7+ must run as a replica set (`rs0`) when exercising transaction-dependent user-management operations (such as atomic role demotions and account deactivations with write-skew guards).
+  - In Docker (single-node replica set):
+    ```powershell
+    docker run -d --name ricozhintel-mongo -p 27017:27017 mongo:7 --replSet rs0
+    docker exec -it ricozhintel-mongo mongosh --eval "rs.initiate()"
+    ```
+  - Or configure your local Windows MongoDB service with `replication.replSetName: "rs0"` in `mongod.cfg` and run `rs.initiate()` in `mongosh`.
 
 ### 1. Backend
 
@@ -594,6 +602,12 @@ All production dependencies (`express`, `mongoose`, `cors`, `helmet`,
 ### Milestone 9 — Documentation Synchronization & Production Deployment Acceptance (Completed)
 - **Stage 9.1 (Completed):** Complete documentation synchronization across all technical and architectural documents with verified test totals (227 tests).
 - **Stage 9.2 (Completed):** Live production smoke testing, deployment provenance verification (commit `154493c`), unauthenticated API boundary checks, and documentation of operator-confirmed production behavior.
+
+### Milestone 10 — Administrative User Management & Concurrency Hardening (Completed)
+- **Stage 10.1 (Completed):** Backend User Management API with MongoDB ACID transaction-based serialization barrier (`withAdminMutationTransaction`), active-admin invariant enforcement, account status (`active` / `inactive`), inactive-user login rejection, JWT status verification middleware, and backward-compatible role endpoint (29 tests in `user.management.test.js`, 108 backend tests total across 9 suites).
+- **Stage 10.2 (Completed):** Frontend user service (`userService.js`), admin-only client route guard (`ProtectedRoute` with `adminOnly`), and dynamic navigation entry in `Sidebar.jsx` (5 tests in `userNavigation.test.jsx`, 8 tests in `userService.test.js`).
+- **Stage 10.3 (Completed):** Admin User Management interface (`UsersPage.jsx`, `UserFormModal.jsx`) featuring paginated table, search, role and status filters, creation, profile editing, role toggle and status toggle confirmation dialogs (`ConfirmDialog`), visual `(You)` indicators, and self-demotion/self-deactivation UI guards (15 tests in `usersPage.test.jsx`).
+- **Stage 10.4 (Completed):** Final integration tests, KPI mock cleanup stabilization, end-to-end audit, and documentation update. Automated test suite expanded from 227 to **284 passing tests** across 26 suites (108 backend + 176 frontend).
 
 ---
 

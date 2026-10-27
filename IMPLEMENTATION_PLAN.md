@@ -143,3 +143,33 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
    - **Local Automated Test Coverage:** Invalid MongoID handling (HTTP 400 VALIDATION_ERROR), nonexistent KPI handling (HTTP 404), pagination validation (HTTP 400), authenticated history reads for Admin and Viewer, and Viewer mutation rejections (HTTP 403 Forbidden) verified locally in Jest test suites without mutating production data.
    - **User-Confirmed Production Flows:** Operator previously manually confirmed authenticated sign-in, history timeline rendering, Quick Value check-ins with change notes, trend analytics with target reference lines, and Viewer UI action hiding on live deployments.
    - **Deferred Testing:** Scripted browser-level automated end-to-end regression suites (Playwright/Cypress) are deferred to the post-MVP roadmap.
+
+---
+
+## Milestone 10: Administrative User Management & Concurrency Hardening (Completed)
+1. **Stage 10.1 — Backend User Management API & Concurrency Remediation (Completed):**
+   - Extended `User` model with `status: { type: String, enum: ['active', 'inactive'], default: 'active' }`.
+   - Updated `authService.loginUser` to reject deactivated accounts (HTTP 403 `ACCOUNT_INACTIVE`).
+   - Updated `authenticate` middleware to check account status on every request and reject deactivated accounts (HTTP 401).
+   - Created `/api/v1/users` router and controller with endpoints for paginated listing, user creation, profile editing, role assignment, and status toggling.
+   - Preserved `/api/v1/auth/users/:id/role` backward compatibility.
+   - Enforced last-active-admin invariant using MongoDB ACID multi-document transactions serialized against a shared barrier document in `system_locks` (`withAdminMutationTransaction`), re-fetching the target user and fresh admin count inside the transaction.
+   - Upgraded test harness in `server/tests/setup.js` from `MongoMemoryServer` to `MongoMemoryReplSet` to support transactions in tests.
+   - Added 29 integration tests in `server/tests/user.management.test.js`, bringing backend tests to **108 passing tests** across 9 suites.
+2. **Stage 10.2 — Frontend User Service, Route Protection & Navigation (Completed):**
+   - Implemented `client/src/services/userService.js` with comprehensive methods for listing, creating, fetching, updating profiles, updating roles, and toggling statuses.
+   - Added `adminOnly` route protection in `ProtectedRoute.jsx` with automatic redirect to `/` for non-admin viewers.
+   - Added `/users` route in `AppRoutes.jsx` with code-split lazy loading.
+   - Added "Users" sidebar navigation item in `Sidebar.jsx`, conditionally rendered for admin users only.
+   - Added 8 unit tests in `userService.test.js` and 5 navigation/route protection tests in `userNavigation.test.jsx`.
+3. **Stage 10.3 — Frontend User Management UI (Completed):**
+   - Implemented `UserFormModal.jsx` supporting creation (with password, role, status) and profile editing (`name`, `email`) with validation and dirty-state checking.
+   - Implemented `UsersPage.jsx` with debounced search, role and status filtering, reset button, paginated user table, role-colored badges, status pills, visual `(You)` indicators, and self-demotion/deactivation button disables.
+   - Integrated `ConfirmDialog` confirmation modals for role changes and account activation/deactivation.
+   - Handled backend error responses (such as last-active-admin lockout) gracefully with toast notifications.
+   - Added 15 integration tests in `client/src/test/usersPage.test.jsx`.
+4. **Stage 10.4 — Final Tests, Documentation & Audit (Completed):**
+   - Verified end-to-end API contracts, query parameters, response envelopes, and error codes.
+   - Secured mock cleanup resilience in `server/tests/kpi.history.service.test.js` with `try ... finally` blocks.
+   - Updated all documentation (`README.md`, `DEPLOYMENT.md`, `PROJECT_PROGRESS.md`, `IMPLEMENTATION_PLAN.md`).
+   - Successfully ran full backend test suite (108/108 tests passing), frontend test suite (176/176 tests passing), and frontend production build (284 tests total).

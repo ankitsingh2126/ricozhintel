@@ -24,6 +24,7 @@ This document provides step-by-step instructions for deploying Ricozhintel on fr
 2. **Create a Free Cluster:**
    - Select **M0 (Free)**.
    - Choose a cloud provider and region closest to your backend hosting region (e.g., AWS `us-east-1` or `eu-central-1`).
+   - *Note:* MongoDB Atlas clusters (including free M0 instances) run as 3-node replica sets by default. This satisfies the replica set prerequisite for MongoDB multi-document ACID transactions used by administrative user management and KPI history operations.
 3. **Database Access (User Credentials):**
    - In **Security > Database Access**, click **Add New Database User**.
    - Select **Password Authentication**.
@@ -125,15 +126,20 @@ MONGODB_URI="mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/rico
   npm run admin:provision -- --email admin@yourdomain.com --password "YourStrongProductionPassword!" --name "Production Admin"
 ```
 
-### Promoting Subsequent Administrators
-Subsequent user registrations through the web interface receive the `viewer` role. An existing administrator can promote or demote users using the authenticated administrative endpoint:
-```bash
-PATCH /api/v1/auth/users/:id/role
-Authorization: Bearer <admin-token>
-Content-Type: application/json
+### Managing Users & Roles (Milestone 10)
+Subsequent user registrations through the web interface receive the `viewer` role. An administrator can manage accounts via the web interface at `/users` or via the dedicated REST API endpoints:
 
-{ "role": "admin" }
-```
+- **List & Search Users:** `GET /api/v1/users?search=&role=&status=&page=&limit=`
+- **Create User:** `POST /api/v1/users` (with optional `role` and `status`)
+- **Edit Profile:** `PATCH /api/v1/users/:id` (`name`, `email`)
+- **Update Role:** `PATCH /api/v1/users/:id/role` (`role: "admin"` / `"viewer"`)
+- **Update Account Status:** `PATCH /api/v1/users/:id/status` (`status: "active"` / `"inactive"`)
+- **Legacy Compatibility:** `PATCH /api/v1/auth/users/:id/role` is preserved.
+
+**Administrative Safeguards:**
+- **Self-Protection:** Administrators cannot demote or deactivate their own accounts.
+- **Last Active Admin Protection:** Role demotions and deactivations execute inside MongoDB ACID transactions serialized on a shared barrier document (`system_locks`). If a request would reduce active administrators to zero, the transaction aborts with HTTP 400.
+- **Account Inactivation:** Inactive users cannot log in (HTTP 403 `ACCOUNT_INACTIVE`), and active JWT tokens of deactivated accounts are immediately rejected by authentication middleware (HTTP 401).
 
 ---
 
