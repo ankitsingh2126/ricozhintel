@@ -14,10 +14,12 @@ let departmentId;
 let testAdmin;
 
 beforeAll(async () => {
+  process.env.MOCK_STANDALONE_TOPOLOGY = 'true';
   await connectDB();
 });
 
 afterAll(async () => {
+  delete process.env.MOCK_STANDALONE_TOPOLOGY;
   await mongoose.connection.close();
 });
 
@@ -237,25 +239,27 @@ describe('kpiService History Logic', () => {
     const originalCreate = KpiHistory.create;
     KpiHistory.create = jest.fn().mockRejectedValue(new Error('Simulated history DB failure'));
 
-    await expect(
-      kpiService.createKpi({
-        name: 'Failing KPI',
-        code: 'OPS-FAIL',
-        department: departmentId,
-        target: 100,
-        currentValue: 10,
-      })
-    ).rejects.toMatchObject({
-      statusCode: 500,
-      message: 'Failed to record initial KPI history; creation rolled back',
-    });
+    try {
+      await expect(
+        kpiService.createKpi({
+          name: 'Failing KPI',
+          code: 'OPS-FAIL',
+          department: departmentId,
+          target: 100,
+          currentValue: 10,
+        })
+      ).rejects.toMatchObject({
+        statusCode: 500,
+        message: 'Failed to record initial KPI history; creation rolled back',
+      });
 
-    // Confirm KPI was rolled back and not left orphaned in database
-    const orphanedKpi = await Kpi.findOne({ code: 'OPS-FAIL' });
-    expect(orphanedKpi).toBeNull();
-
-    // Restore original method
-    KpiHistory.create = originalCreate;
+      // Confirm KPI was rolled back and not left orphaned in database
+      const orphanedKpi = await Kpi.findOne({ code: 'OPS-FAIL' });
+      expect(orphanedKpi).toBeNull();
+    } finally {
+      // Restore original method even if assertions fail
+      KpiHistory.create = originalCreate;
+    }
   });
 
   test('compensating rollback: updateKpi rolls back value if history creation fails', async () => {
@@ -273,26 +277,28 @@ describe('kpiService History Logic', () => {
     const originalCreate = KpiHistory.create;
     KpiHistory.create = jest.fn().mockRejectedValue(new Error('Simulated history update failure'));
 
-    await expect(
-      kpiService.updateKpi(
-        kpi._id,
-        {
-          currentValue: 80,
-          status: 'completed',
-        },
-        testAdmin
-      )
-    ).rejects.toMatchObject({
-      statusCode: 500,
-      message: 'Failed to record KPI history; update rolled back',
-    });
+    try {
+      await expect(
+        kpiService.updateKpi(
+          kpi._id,
+          {
+            currentValue: 80,
+            status: 'completed',
+          },
+          testAdmin
+        )
+      ).rejects.toMatchObject({
+        statusCode: 500,
+        message: 'Failed to record KPI history; update rolled back',
+      });
 
-    // Confirm KPI reverted to original currentValue (50)
-    const reverted = await Kpi.findById(kpi._id);
-    expect(reverted.currentValue).toBe(50);
-
-    // Restore original method
-    KpiHistory.create = originalCreate;
+      // Confirm KPI reverted to original currentValue (50)
+      const reverted = await Kpi.findById(kpi._id);
+      expect(reverted.currentValue).toBe(50);
+    } finally {
+      // Restore original method even if assertions fail
+      KpiHistory.create = originalCreate;
+    }
   });
 
   test('compensating rollback: restores metadata AND metric values if history creation fails', async () => {

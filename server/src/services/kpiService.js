@@ -68,8 +68,11 @@ export const getKpiById = async (id) => {
 };
 
 // Check if the current MongoDB connection topology supports multi-document transactions.
-// Replica sets (such as MongoDB Atlas) support transactions; standalone instances (such as test runners) do not.
+// Replica sets (such as MongoDB Atlas) support transactions; standalone instances (or forced fallback tests) do not.
 export const supportsTransactions = () => {
+  if (process.env.MOCK_STANDALONE_TOPOLOGY === 'true') {
+    return false;
+  }
   const topology = mongoose.connection.client?.topology?.description;
   if (!topology) return false;
   const type = topology.type;

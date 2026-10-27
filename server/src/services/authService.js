@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env } from '../config/env.js';
+import * as userService from './userService.js';
 
 export const generateToken = (user) => {
   return jwt.sign(
@@ -120,14 +121,8 @@ export const bootstrapAdmin = async ({ name, email, password, bootstrapSecret })
   }
 };
 
-export const updateUserRole = async (userId, newRole) => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw ApiError.notFound('User not found');
-  }
-  user.role = newRole;
-  await user.save();
-  return user.toJSON();
+export const updateUserRole = async (userId, newRole, actorUserId) => {
+  return userService.updateUserRole(userId, newRole, actorUserId);
 };
 
 export const login = async ({ email, password }) => {
@@ -139,6 +134,10 @@ export const login = async ({ email, password }) => {
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw ApiError.unauthorized('Invalid email or password');
+  }
+
+  if (user.status === 'inactive') {
+    throw ApiError.forbidden('Account is deactivated. Contact an administrator.');
   }
 
   const token = generateToken(user);

@@ -32,6 +32,10 @@ export const authenticate = async (req, res, next) => {
       throw ApiError.unauthorized('User associated with token no longer exists');
     }
 
+    if (user.status === 'inactive') {
+      throw ApiError.unauthorized('Account is deactivated');
+    }
+
     req.user = user;
     next();
   } catch (err) {

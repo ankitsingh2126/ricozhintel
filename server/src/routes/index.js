@@ -7,6 +7,7 @@ import healthRoutes from './healthRoutes.js';
 import departmentRoutes from './departmentRoutes.js';
 import kpiRoutes from './kpiRoutes.js';
 import authRoutes from './authRoutes.js';
+import userRoutes from './userRoutes.js';
 import aliasRoutes from './aliasRoutes.js';
 
 const router = Router();
@@ -14,6 +15,7 @@ const router = Router();
 // Canonical API
 router.use('/v1/health', healthRoutes);
 router.use('/v1/auth', authRoutes);
+router.use('/v1/users', userRoutes);
 router.use('/v1/departments', departmentRoutes);
 router.use('/v1/kpis', kpiRoutes);
 

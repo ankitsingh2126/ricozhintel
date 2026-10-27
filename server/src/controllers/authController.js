@@ -30,7 +30,7 @@ export const updateUserRole = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
-    const user = await authService.updateUserRole(id, role);
+    const user = await authService.updateUserRole(id, role, req.user?._id);
     return sendSuccess(res, user);
   } catch (err) {
     next(err);
