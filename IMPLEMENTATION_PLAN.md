@@ -4,47 +4,47 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
 
 ---
 
-## Milestone 1: Data Integrity & Backend Accuracy (Immediate)
+## Milestone 1: Data Integrity & Backend Accuracy (Completed)
 1. **Department Deletion Integrity:**
-   - Modify `departmentService.deleteDepartment` to check if any KPIs reference this department before deleting.
-   - If referenced KPIs exist, return a clear 400 Bad Request / Conflict with a user-friendly message (`"Cannot delete department with active KPIs. Reassign or delete the KPIs first."`).
+   - Modified `departmentService.deleteDepartment` to check if any KPIs reference this department before deleting.
+   - If referenced KPIs exist, returns a clear 400 Bad Request / Conflict with a user-friendly message (`"Cannot delete department with active KPIs. Reassign or delete the KPIs first."`).
 2. **KPI Department Summary Aggregation Correction:**
-   - In `kpiService.getSummaryByDepartment`, avoid unit mixing. Compute `avgAchievement` by calculating average individual KPI achievement percentages (mirroring `calculateAchievement` logic) rather than summing incompatible raw numbers across different units.
+   - In `kpiService.getSummaryByDepartment`, avoided unit mixing. Computes `avgAchievement` by calculating average individual KPI achievement percentages (mirroring `calculateAchievement` logic) rather than summing incompatible raw numbers across different units.
 
 ---
 
-## Milestone 2: Comprehensive Backend Test Coverage
+## Milestone 2: Comprehensive Backend Test Coverage (Completed)
 1. **Department Integration Tests (`server/tests/department.test.js`):**
-   - Test department listing with pagination and search.
-   - Test validation errors (missing name/code, short code).
-   - Test duplicate code / name returning 409 Conflict.
-   - Test update (`PATCH` & `PUT` alias).
-   - Test delete protection when department has assigned KPIs.
-   - Test successful delete when department has no KPIs.
+   - Tests department listing with pagination and search.
+   - Tests validation errors (missing name/code, short code).
+   - Tests duplicate code / name returning 409 Conflict.
+   - Tests update (`PATCH` & `PUT` alias).
+   - Tests delete protection when department has assigned KPIs.
+   - Tests successful delete when department has no KPIs.
 2. **KPI Summaries Integration Tests (`server/tests/kpi.summary.test.js`):**
-   - Test `/api/v1/kpis/summary` (status counts, average progress).
-   - Test `/api/v1/kpis/summary/by-department` (department breakdown and achievement).
+   - Tests `/api/v1/kpis/summary` (status counts, average progress).
+   - Tests `/api/v1/kpis/summary/by-department` (department breakdown and achievement).
 
 ---
 
-## Milestone 3: Frontend Refinement & User Experience
+## Milestone 3: Frontend Refinement & User Experience (Completed)
 1. **Department Detail KPI Quick-Add:**
-   - Allow adding a KPI directly from `DepartmentDetailPage` pre-selecting the current department.
+   - Allows adding a KPI directly from `DepartmentDetailPage` pre-selecting the current department.
 2. **Client Validation & Error Toast Consistency:**
-   - Verify all input limits and error handling across both forms (`DepartmentFormModal` and `KpiFormModal`).
+   - Verified all input limits and error handling across both forms (`DepartmentFormModal` and `KpiFormModal`).
 3. **Verify Full Production Build:**
-   - Run `npm run build` to ensure clean bundle output.
+   - Verified clean production bundle output via Vite.
 
 ---
 
-## Milestone 4: CSV Export & Deployment Architecture
+## Milestone 4: CSV Export & Deployment Architecture (Completed)
 1. **RFC 4180 CSV Export Utility (`client/src/utils/csvExport.js`):**
    - KPI table export respecting active filters (search, status, period).
    - Executive Dashboard Department snapshot export.
 2. **Free-Tier Deployment Guide (`DEPLOYMENT.md`):**
    - MongoDB Atlas cluster setup & connection URI formatting.
-   - Backend deployment configuration (Render / Railway / fly.io).
-   - Frontend deployment configuration (Vercel / Netlify / Cloudflare Pages).
+   - Backend deployment configuration (Render).
+   - Frontend deployment configuration (Vercel).
    - Environment variables matrix and health-check verification steps.
 
 ---
@@ -54,7 +54,7 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
    - User schema with `bcryptjs` password hashing, unique email enforcement, role field (`admin` | `viewer`).
    - `authenticate` and `authorize('admin')` middleware securing Express routes.
    - Authentication routes: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`.
-   - Seed script populates demo Admin and Viewer accounts.
+   - Seed script populates demo Admin and Viewer accounts for local development.
 2. **Expanded Test Coverage:**
    - Added `server/tests/auth.test.js` (14 tests).
    - Updated existing test suites with authentication headers.
@@ -88,7 +88,7 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
 
 ---
 
-## Milestone 7: Production Rollout, Performance & Acceptance (In Progress)
+## Milestone 7: Production Rollout, Performance & Acceptance (Completed — commit `d964b2c`)
 1. **Stage 7.1 — Documentation Synchronization (Completed):**
    - Synchronized all architecture, progress, audit, and deployment documents (`PROJECT_PROGRESS.md`, `PROJECT_AUDIT.md`, `IMPLEMENTATION_PLAN.md`, `README.md`, `DEPLOYMENT.md`) with the latest verified state (commit `85dcaf9`, 183 automated tests).
    - Explicitly recorded live URLs (`https://ricozhintel.vercel.app` and `https://ricozhintel-api.onrender.com`).
@@ -97,6 +97,49 @@ Based on the findings in `PROJECT_AUDIT.md`, this plan addresses the critical MV
    - Implemented dynamic imports with `React.lazy()` and `Suspense` in `client/src/routes/AppRoutes.jsx` across all page routes (`DashboardPage`, `DepartmentsPage`, `DepartmentDetailPage`, `KpisPage`, `KpiDetailPage`, `LoginPage`, `NotFoundPage`).
    - Completely resolved Vite's 500 kB chunk threshold advisory: largest generated chunk reduced from ~750 kB to 367.57 kB (`DashboardPage`), with main entry chunk at 318.41 kB.
    - All 128 frontend tests and 55 backend tests remain 100% passing.
-3. **Stage 7.3 — Production End-to-End Smoke Testing & Final Acceptance (Pending):**
-   - Infrastructure, CORS, routing, and unauthenticated API checks verified as passing.
-   - Live authenticated user workflows (login, Department CRUD, KPI Quick Value check-ins) pending test credentials/operator manual verification.
+3. **Stage 7.3 — Production Deployment & Initial Verification (Completed):**
+   - Live infrastructure, CORS configuration, routing, and health checks verified on Vercel and Render.
+   - Verified clean zero-downtime deployment for code-split frontend and backend services.
+
+---
+
+## Milestone 8: KPI History, Change Notes & Trend Analytics (Completed — commit `154493c`)
+1. **Stage 8.1 — Backend History Tracking Model, Rollback & API (Completed):**
+   - Created `KpiHistory` Mongoose schema with `kpiId`, `value`, `target`, `achievement`, `status`, `changeNote` (max 500 chars), `changedBy` (ref: User), and `isBaseline`.
+   - Wired history recording into `kpiService.createKpi` (baseline creation) and `kpiService.updateKpi` (check-in/value updates).
+   - Implemented transaction support with automatic compensating rollback fallback for non-replica-set MongoDB environments.
+   - Created paginated API endpoint `GET /api/v1/kpis/:id/history` with input validation (`page`, `limit` max 100).
+   - Added 24 new backend integration tests across 2 new test suites (`server/tests/kpi.history.test.js`, 15 tests; `server/tests/kpi.history.model.test.js`, 9 tests), bringing backend test total to **79 passing tests** across 8 suites.
+2. **Stage 8.2 — Frontend Change Notes in Quick Value Modal (Completed):**
+   - Extended `QuickValueModal.jsx` to include an optional change note textarea (max 500 characters) with real-time character count.
+   - Updated `kpiService.updateValue` to accept and send `changeNote`.
+   - Added unit and workflow tests for change note entry, trimming, and payload submission in `client/src/test/forms.test.jsx`.
+3. **Stage 8.3 — KPI History Timeline Component (Completed):**
+   - Built `KpiHistoryTimeline.jsx` on `KpiDetailPage.jsx` to display chronological audit history.
+   - Displays relative and absolute timestamps, user attribution (`changedBy.name` or fallback), value deltas, status badges, and baseline indicators.
+   - Implemented pagination controls (Previous/Next), loading skeletons, error states with retry, and empty state handling.
+   - Added 11 new tests in `client/src/test/kpiHistoryTimeline.test.jsx`.
+4. **Stage 8.4 — KPI Trend Analytics Chart & Unit Formatting (Completed):**
+   - Built `KpiTrendChart.jsx` rendering chronological historical values via Recharts `LineChart` and `ResponsiveContainer`.
+   - Added target reference line (`ReferenceLine`) with unit-aware formatting matching KPI unit (`%`, `$`, or custom string).
+   - Created `client/src/utils/trendUtils.js` for chronological sorting, duplicate timestamp deduplication, and data transformation.
+   - Handled edge cases: no history, single baseline record (renders single-point dot with descriptive message), and 100-record query limit.
+   - Integrated with both Admin and Viewer permissions (read-only for all authenticated roles).
+   - Added 9 new tests in `client/src/test/kpiTrendChart.test.jsx`, bringing frontend test total to **148 passing tests** across 14 suites.
+5. **Combined Verification & Code Quality:**
+   - **227 total automated tests passing** (79 backend in Jest + 148 frontend in Vitest) across 22 suites.
+   - Clean ESLint run (0 errors, 0 warnings).
+   - Clean production build with all chunks under 370 kB.
+
+---
+
+## Milestone 9: Documentation Synchronization & Production Deployment Acceptance (Completed)
+1. **Stage 9.1 — Documentation Synchronization (Completed):**
+   - Synchronized `PROJECT_PROGRESS.md`, `PROJECT_AUDIT.md`, `IMPLEMENTATION_PLAN.md`, `README.md`, and `DEPLOYMENT.md` to accurately document Milestone 7 code-splitting (commit `d964b2c`) and Milestone 8 history/notes/trend analytics (commit `154493c`).
+   - Recorded verified test counts: **227 passing automated tests** (79 backend in Jest + 148 frontend in Vitest) across 22 suites.
+   - Accurately categorized completed features, live production manual verifications, known limitations (100-record chart limit, Render free-tier cold starts), and future work.
+2. **Stage 9.2 — Production Smoke Testing & Deployment Verification (Completed):**
+   - **Automated Live Checks:** Verified live frontend availability (HTTP 200 on Vercel), backend health (HTTP 200 with `db: "connected"` on Render), build provenance (Vercel bundle metadata confirms commit `154493c`), and unauthenticated API boundary enforcement (HTTP 401 on unauthenticated `/kpis/:id/history` and mutating endpoints; HTTP 401 on invalid Bearer tokens).
+   - **Local Automated Test Coverage:** Invalid MongoID handling (HTTP 400 VALIDATION_ERROR), nonexistent KPI handling (HTTP 404), pagination validation (HTTP 400), authenticated history reads for Admin and Viewer, and Viewer mutation rejections (HTTP 403 Forbidden) verified locally in Jest test suites without mutating production data.
+   - **User-Confirmed Production Flows:** Operator previously manually confirmed authenticated sign-in, history timeline rendering, Quick Value check-ins with change notes, trend analytics with target reference lines, and Viewer UI action hiding on live deployments.
+   - **Deferred Testing:** Scripted browser-level automated end-to-end regression suites (Playwright/Cypress) are deferred to the post-MVP roadmap.

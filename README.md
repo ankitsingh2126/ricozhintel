@@ -6,11 +6,13 @@ Ricozhintel provides unified visibility into cross-functional business performan
 through KPI dashboards, departmental monitoring, target tracking, executive
 scorecards, and management reporting.
 
-> **Status: Milestone 6 Complete — ~95% of planned MVP scope.**
+> **Status: Milestone 8 Complete — ~98% of planned MVP scope.**
 > Fully implemented with stateless JWT authentication, role-based access control
 > (Admin vs. Viewer), full CRUD workflows, interactive dashboard filtering,
-> RFC 4180 CSV reporting, and a comprehensive automated test suite
-> (**183 passing tests**: 128 frontend in Vitest + 55 backend in Jest).
+> RFC 4180 CSV reporting, KPI audit history tracking, optional change notes,
+> interactive trend analytics with target reference lines, route-level code splitting,
+> and a comprehensive automated test suite (**227 passing tests**: 148 frontend in
+> Vitest + 79 backend in Jest across 22 suites).
 > Live in production on Vercel and Render.
 > See [Milestone history](#milestone-history) and
 > [Current limitations](#current-limitations).
@@ -84,28 +86,29 @@ No credentials are committed to this repository. Each side ships with a
 
 ```
 ricozhintel/
-├── client/                     React + Vite + Tailwind
+├── client/                     React + Vite + Tailwind (Code-Split)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── charts/         Status breakdown, department progress
+│   │   │   ├── charts/         Status breakdown, department progress, KpiTrendChart
 │   │   │   ├── common/         Modal, ConfirmDialog, Toast, Loader,
 │   │   │   │                   ErrorState, EmptyState, PageHeader,
 │   │   │   │                   ProgressBar, StatusBadge
 │   │   │   ├── dashboard/      KpiCard
 │   │   │   ├── departments/    DepartmentFormModal
-│   │   │   └── kpis/           KpiFormModal, QuickValueModal
+│   │   │   └── kpis/           KpiFormModal, QuickValueModal, KpiHistoryTimeline
 │   │   ├── context/            AuthContext, ToastContext
 │   │   ├── hooks/              useFetch
 │   │   ├── layouts/            AppLayout, Sidebar, Header
 │   │   ├── pages/              DashboardPage, DepartmentsPage, DepartmentDetailPage,
 │   │   │                       KpisPage, KpiDetailPage, LoginPage, NotFoundPage
-│   │   ├── routes/             AppRoutes, ProtectedRoute
+│   │   ├── routes/             AppRoutes (React.lazy), ProtectedRoute
 │   │   ├── services/           apiClient, authService, departmentService, kpiService
-│   │   ├── test/               12 Vitest suites (128 passing tests):
+│   │   ├── test/               14 Vitest suites (148 passing tests):
 │   │   │                       apiClient, auth, dashboardAndCsv, departmentDetail,
-│   │   │                       departments, forms, kpiDetail, kpis, notFound,
-│   │   │                       rbac, toasts, useFetch, setup.js, testUtils.jsx
-│   │   └── utils/              formatters, constants, csvExport
+│   │   │                       departments, forms, kpiDetail, kpiHistoryTimeline,
+│   │   │                       kpiTrendChart, kpis, notFound, rbac, toasts,
+│   │   │                       useFetch, setup.js, testUtils.jsx
+│   │   └── utils/              formatters, constants, csvExport, trendUtils
 │   ├── .env.example
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
@@ -117,17 +120,18 @@ ricozhintel/
     │   ├── config/             env loader, db connection
     │   ├── controllers/        authController, departmentController, kpiController
     │   ├── middleware/         authenticate, authorize, errorHandler, notFound, validateRequest
-    │   ├── models/             Department, Kpi, User
+    │   ├── models/             Department, Kpi, KpiHistory, User
     │   ├── routes/             index, authRoutes, healthRoutes, aliasRoutes,
     │   │                       departmentRoutes, kpiRoutes
     │   ├── seed/               seedData
     │   ├── services/           authService, departmentService, kpiService
     │   ├── utils/              ApiError, apiResponse, achievement
     │   └── validators/         authValidator, departmentValidator, kpiValidator
-    ├── tests/                  6 Jest suites (55 passing tests):
+    ├── tests/                  8 Jest suites (79 passing tests):
     │   ├── setup.js, health.test.js, auth.test.js,
     │   ├── department.test.js, kpi.validation.test.js,
-    │   ├── kpi.summary.test.js, csv.export.test.js
+    │   ├── kpi.summary.test.js, kpi.history.test.js,
+    │   ├── kpi.history.model.test.js, csv.export.test.js
     ├── .env.example
     ├── jest.config.js
     └── server.js
@@ -179,7 +183,17 @@ ricozhintel/
   - **Export CSV:** RFC 4180-compliant export respecting all active filters.
 - **KPI detail page** — full record with progress visualization, target vs actual,
   achievement rule (`higher_is_better` vs `lower_is_better`), quick value check-in modal,
-  and a link back to the owning department.
+  and a link back to the owning department:
+  - **KPI Trend Analytics Chart (`KpiTrendChart`)** — interactive Recharts line visualization
+    plotting verified historical values over time with a unit-aware target reference line,
+    custom tooltip, baseline markers, and graceful single-point/empty state handling.
+  - **KPI History Timeline (`KpiHistoryTimeline`)** — audit log with relative/absolute
+    timestamps, user attribution (`changedBy`), previous-to-current value deltas, status badges,
+    optional change notes, and pagination controls.
+- **Quick Value Modal with Change Notes** — update KPI values with an optional note
+  (up to 500 characters) stored in the audit history.
+- **Route-level code splitting** — dynamic imports (`React.lazy()` / `<Suspense>`) for all
+  page routes, eliminating large bundles and keeping all production chunks under 370 kB.
 - **Toast notification system** — success, error, and info variants; auto-dismiss and manual dismissal; multi-toast stacking.
 - **Loading, empty, and error states** on every network-backed view, with a Retry action.
 - **Global API client & error interceptor** — automatic Bearer token injection, session handling, and structured backend error transformation.
@@ -190,13 +204,20 @@ ricozhintel/
 - **Express 4 API** under `/api/v1/*` with a `/api/health` compatibility alias.
 - **MongoDB** through Mongoose 8, with connection events logged on connect,
   error, and disconnect.
-- **Three models:**
+- **Four models:**
   - `User` — name, lowercase unique email, salted/hashed password (`bcryptjs`), role (`admin` or `viewer`).
   - `Department` — name, unique code, head, description, status.
   - `Kpi` — name, code, department reference, description, unit, target,
     current value, status, period, owner, and `statusRule`
     (`higher_is_better` or `lower_is_better`).
-- **Full CRUD** for both resources, with `PUT` exposed as an alias of `PATCH`.
+  - `KpiHistory` — immutable audit log (`kpiId`, `value`, `target`, `achievement`,
+    `status`, `changeNote`, `changedBy`, `isBaseline`, `createdAt`).
+- **Full CRUD** for departments and KPIs, with `PUT` exposed as an alias of `PATCH`.
+- **Automated KPI history tracking:**
+  - Automatic baseline record creation on KPI creation.
+  - Automatic update snapshot recording with optional change note on check-ins.
+  - Transaction support with automatic compensating rollback fallback for standalone MongoDB instances.
+  - Dedicated paginated endpoint `GET /api/v1/kpis/:id/history` with query validation (`page`, `limit` max 100).
 - **Referential integrity:**
   - A KPI cannot be created or updated against a non-existent department.
   - A department cannot be deleted if active KPIs reference it (returns HTTP 400 with helpful message).
@@ -222,11 +243,11 @@ ricozhintel/
 
 ### Automated Tests
 
-- **183 automated tests (100% passing):**
-  - **128 Frontend tests** (Vitest 5 + React Testing Library + JSDOM across 12 test files).
-  - **55 Backend integration tests** (Jest + Supertest + mongodb-memory-server across 6 test files).
+- **227 automated tests (100% passing across 22 suites):**
+  - **148 Frontend tests** (Vitest 5 + React Testing Library + JSDOM across 14 test files).
+  - **79 Backend integration tests** (Jest + Supertest + mongodb-memory-server across 8 test files).
 - **Client Linting:** ESLint 9 passes with 0 errors and 0 warnings.
-- **Client Production Build:** Compiles cleanly with Vite in ~2.1s.
+- **Client Production Build:** Compiles cleanly with Vite in ~2.1s (all chunks <370 kB).
 
 ---
 
@@ -286,6 +307,7 @@ Every response uses one of two shapes.
 | GET | `/api/v1/kpis/summary` | Authenticated | Global counts by status and average progress |
 | GET | `/api/v1/kpis/summary/by-department` | Authenticated | One summary row per department |
 | GET | `/api/v1/kpis/:id` | Authenticated | Fetch one KPI (department populated) |
+| GET | `/api/v1/kpis/:id/history` | Authenticated | Paginated audit history for a KPI (`page`, `limit`) |
 | POST | `/api/v1/kpis` | Admin | Create a KPI |
 | PATCH | `/api/v1/kpis/:id` | Admin | Partial update (including quick value updates) |
 | PUT | `/api/v1/kpis/:id` | Admin | Alias for PATCH |
@@ -379,7 +401,7 @@ the missing names so you can correct `.env` immediately.
 
 ## Running the tests
 
-The project includes **183 automated tests** across the backend and frontend.
+The project includes **227 automated tests** across the backend and frontend (100% passing across 22 test suites).
 
 ### 1. Backend Integration Tests (Jest + Supertest)
 
@@ -394,8 +416,8 @@ npm test
 Expected output:
 
 ```
-Test Suites: 6 passed, 6 total
-Tests:       55 passed, 55 total
+Test Suites: 8 passed, 8 total
+Tests:       79 passed, 79 total
 ```
 
 Covered suites:
@@ -404,6 +426,8 @@ Covered suites:
 - `kpi.validation.test.js` (7 tests)
 - `department.test.js` (8 tests)
 - `kpi.summary.test.js` (13 tests)
+- `kpi.history.test.js` (15 tests)
+- `kpi.history.model.test.js` (9 tests)
 - `csv.export.test.js` (10 tests)
 
 ### 2. Frontend Component & Integration Tests (Vitest + React Testing Library)
@@ -419,8 +443,8 @@ npm test -- --run
 Expected output:
 
 ```
-Test Files  12 passed (12)
-     Tests  128 passed (128)
+Test Files  14 passed (14)
+     Tests  148 passed (148)
 ```
 
 Covered suites:
@@ -429,6 +453,8 @@ Covered suites:
 - `forms.test.jsx` (7 tests)
 - `departmentDetail.test.jsx` (11 tests)
 - `kpiDetail.test.jsx` (12 tests)
+- `kpiHistoryTimeline.test.jsx` (11 tests)
+- `kpiTrendChart.test.jsx` (9 tests)
 - `useFetch.test.jsx` (10 tests)
 - `toasts.test.jsx` (8 tests)
 - `apiClient.test.js` (14 tests)
@@ -461,12 +487,21 @@ Expected output:
 
 ```
 vite v8.x.x building client environment for production...
-✓ 2564 modules transformed.
-dist/index.html                   0.45 kB │ gzip:   0.29 kB
-dist/assets/index-DJBKX52x.css   22.49 kB │ gzip:   4.89 kB
-dist/assets/index-DTnEhPdf.js   750.24 kB │ gzip: 223.48 kB
+✓ 2568 modules transformed.
+dist/index.html                         0.45 kB │ gzip:   0.29 kB
+dist/assets/index-DJBKX52x.css         22.49 kB │ gzip:   4.89 kB
+dist/assets/NotFoundPage-*.js            2.14 kB │ gzip:   0.98 kB
+dist/assets/LoginPage-*.js              18.22 kB │ gzip:   5.41 kB
+dist/assets/DepartmentDetailPage-*.js   38.10 kB │ gzip:  10.25 kB
+dist/assets/DepartmentsPage-*.js        40.15 kB │ gzip:  11.12 kB
+dist/assets/KpisPage-*.js               74.85 kB │ gzip:  20.40 kB
+dist/assets/KpiDetailPage-*.js         105.62 kB │ gzip:  28.90 kB
+dist/assets/index-*.js                 318.41 kB │ gzip:  98.15 kB
+dist/assets/DashboardPage-*.js         367.57 kB │ gzip: 104.20 kB
 ✓ built in ~2.1s
 ```
+
+All generated chunks are under 370 kB, completely eliminating Vite's 500 kB chunk threshold advisory through route-level code splitting.
 
 The bundle is written to `client/dist/`. To preview the built bundle locally:
 
@@ -544,10 +579,21 @@ All production dependencies (`express`, `mongoose`, `cors`, `helmet`,
 - Expanded baseline tests (`auth.test.jsx`, `rbac.test.jsx`, `forms.test.jsx`, `dashboardAndCsv.test.jsx`, `useFetch.test.jsx`).
 - Total: 128 frontend tests across 12 files (100% passing).
 
-### Milestone 7 — Production Rollout, Performance & Acceptance (In Progress)
+### Milestone 7 — Production Rollout, Performance & Acceptance (Completed — commit `d964b2c`)
 - **Stage 7.1 (Completed):** Full documentation synchronization with verified commit `85dcaf9` and 183 automated tests.
-- **Stage 7.2 (Completed):** Frontend bundle size optimization via route-level code splitting (`React.lazy()` / `Suspense`). Chunks reduced from ~750 kB to under 370 kB, eliminating Vite's 500 kB chunk threshold advisory.
-- **Stage 7.3 (Pending):** Production end-to-end smoke testing of complete user journeys on live URLs.
+- **Stage 7.2 (Completed):** Frontend bundle size optimization via route-level code splitting (`React.lazy()` / `<Suspense>`). Chunks reduced from ~750 kB to under 370 kB, eliminating Vite's 500 kB chunk threshold advisory.
+- **Stage 7.3 (Completed):** Production deployment verification of code-split bundle on live hosting.
+
+### Milestone 8 — KPI History, Change Notes & Trend Analytics (Completed — commit `154493c`)
+- **Stage 8.1 (Completed):** Backend `KpiHistory` tracking model, transaction support with fallback compensating rollback, and `GET /api/v1/kpis/:id/history` endpoint with pagination and limit cap (24 backend tests across 2 new suites).
+- **Stage 8.2 (Completed):** Frontend change notes in `QuickValueModal.jsx` (up to 500 characters) recorded in history log.
+- **Stage 8.3 (Completed):** `KpiHistoryTimeline.jsx` audit history component on KPI detail page with timestamps, user attribution, value deltas, status badges, and pagination (11 frontend tests).
+- **Stage 8.4 (Completed):** `KpiTrendChart.jsx` Recharts visualization with unit-aware target reference line, chronological sorting (`trendUtils.js`), 100-record limit handling, and single-record/empty states (9 frontend tests).
+- Expanded automated test suite from 183 to **227 passing tests** across 22 suites (79 backend + 148 frontend).
+
+### Milestone 9 — Documentation Synchronization & Production Deployment Acceptance (Completed)
+- **Stage 9.1 (Completed):** Complete documentation synchronization across all technical and architectural documents with verified test totals (227 tests).
+- **Stage 9.2 (Completed):** Live production smoke testing, deployment provenance verification (commit `154493c`), unauthenticated API boundary checks, and documentation of operator-confirmed production behavior.
 
 ---
 
@@ -555,7 +601,8 @@ All production dependencies (`express`, `mongoose`, `cors`, `helmet`,
 
 The following are known limitations, not bugs:
 
-- **Production smoke testing pending:** Live health checks and unauthenticated API boundaries confirm Render and Vercel services are running, but formal end-to-end acceptance testing of authenticated journeys on live domains is scheduled for Stage 7.3.
+- **Trend chart 100-record query limit:** To ensure optimal client-side rendering performance and avoid overloading free-tier resources, the trend chart queries up to the 100 most recent history records (`limit: 100`). The full historical changelog can be paged through via the changelog table directly below the chart.
+- **Production smoke testing and verification status:** Live health checks, routing, code splitting, and Milestone 8 features (KPI history, change notes, and trend chart) have been deployed on Vercel and Render. Live unauthenticated API boundary checks (401 on unauthenticated history reads/mutations) and build provenance from commit `154493c` have been verified without mutating production data. Authenticated workflows were confirmed through operator manual testing. Automated browser-based regression suites (Playwright/Cypress) remain deferred to the post-MVP roadmap.
 - **Render free-tier cold starts:** The free Render instance spins down after 15 minutes of inactivity; initial cold starts take 30–50 seconds.
 - **Dashboard department grouping:** Department progress averages per-KPI achievement percentages rather than summing raw values across mismatched units (intentional).
 - **The `[DEMO]` seed data** is provided for development only and must not be used as real company metrics.

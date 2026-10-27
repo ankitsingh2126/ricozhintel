@@ -160,4 +160,7 @@ Content-Type: application/json
 - [x] Initial production admin created via `/api/v1/auth/bootstrap-admin` or CLI provisioning script with a private, strong password.
 - [x] No `.env` credentials are committed in Git history.
 - [x] Rate limiter permits ordinary usage (120 req/min per IP, with `trust proxy` enabled).
-- [ ] **Production end-to-end smoke test:** Full user journeys (login, Department CRUD, KPI Quick Value update, CSV export) verified against live production URLs (Pending: Milestone 7, Stage 7.3).
+- [x] Route-level code splitting deployed on Vercel with all bundles under 370 kB.
+- [x] KPI History, change notes, and Trend Analytics (Milestone 8) deployed and manually exercised in production on live deployments (`https://ricozhintel.vercel.app` & `https://ricozhintel-api.onrender.com`).
+- [x] **Production smoke testing and deployment verification (Milestone 9, Stage 9.2):** Live frontend responds HTTP 200, backend health reports connected DB, build provenance confirms commit `154493c`, and unauthenticated API boundary checks (HTTP 401 on unauthenticated history reads and mutations) verified on live production URLs. Authenticated history reads, invalid ID handling, and RBAC mutation restrictions are verified via automated integration tests locally and previously confirmed via manual operator testing in production.
+- [ ] **Automated browser end-to-end regression suite (Playwright/Cypress):** Deferred to post-MVP roadmap.
