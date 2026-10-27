@@ -1,4 +1,4 @@
-﻿// Initial empty form state constants for Department and KPI creation/editing modals.
+// Initial empty form state constants for Department and KPI creation/editing modals.
 
 export const EMPTY_DEPARTMENT_FORM = {
   name: '',
@@ -19,4 +19,12 @@ export const EMPTY_KPI_FORM = {
   period: 'monthly',
   owner: '',
   statusRule: 'higher_is_better',
+};
+
+export const EMPTY_USER_FORM = {
+  name: '',
+  email: '',
+  password: '',
+  role: 'viewer',
+  status: 'active',
 };

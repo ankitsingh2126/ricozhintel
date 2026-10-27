@@ -1,13 +1,17 @@
-﻿// Sidebar navigation.
+// Sidebar navigation.
 // Fixed on desktop; slides in/out on mobile via a prop from AppLayout.
 
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, Target, X } from 'lucide-react';
+import { LayoutDashboard, Building2, Target, Users, X } from 'lucide-react';
 import { NAV_ITEMS, APP_NAME, APP_TAGLINE } from '../utils/constants.js';
+import { useAuth } from '../context/useAuth.js';
 
-const ICONS = { LayoutDashboard, Building2, Target };
+const ICONS = { LayoutDashboard, Building2, Target, Users };
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { isAdmin } = useAuth();
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <>
       {/* Dark overlay on mobile when sidebar is open */}
@@ -43,7 +47,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Nav links */}
         <nav className="px-3 py-4 space-y-1">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = ICONS[item.icon];
             return (
               <NavLink
@@ -66,7 +70,7 @@ export default function Sidebar({ isOpen, onClose }) {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 px-5 py-4 border-t border-slate-800 text-xs text-slate-500">
-          Milestone 1 · Foundation
+          Milestone 10 · Administration
         </div>
       </aside>
     </>

@@ -14,6 +14,7 @@ const DepartmentsPage = lazy(() => import('../pages/DepartmentsPage.jsx'));
 const DepartmentDetailPage = lazy(() => import('../pages/DepartmentDetailPage.jsx'));
 const KpisPage = lazy(() => import('../pages/KpisPage.jsx'));
 const KpiDetailPage = lazy(() => import('../pages/KpiDetailPage.jsx'));
+const UsersPage = lazy(() => import('../pages/UsersPage.jsx'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
 
 // Suspense fallback wrapper consistent with application layout
@@ -85,6 +86,16 @@ export default function AppRoutes() {
               <PageSuspense>
                 <KpiDetailPage />
               </PageSuspense>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute requireAdmin>
+                <PageSuspense>
+                  <UsersPage />
+                </PageSuspense>
+              </ProtectedRoute>
             }
           />
           <Route

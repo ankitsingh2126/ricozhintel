@@ -1,4 +1,4 @@
-﻿// App shell. Sidebar on the left, header + content on the right.
+// App shell. Sidebar on the left, header + content on the right.
 // Uses <Outlet /> from react-router to render the current page.
 
 import { useState } from 'react';
@@ -14,6 +14,7 @@ const titleForPath = (path) => {
   if (match) return match.label;
   if (path.startsWith('/departments')) return 'Departments';
   if (path.startsWith('/kpis')) return 'KPIs';
+  if (path.startsWith('/users')) return 'Users';
   return 'Ricozhintel';
 };
 
