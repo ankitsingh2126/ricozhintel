@@ -5,10 +5,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth.js';
 import { Lock, Mail, ShieldCheck, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react';
 
-export default function LoginPage() {
+export default function LoginPage({ showDemoOverride } = {}) {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Demo sign-in is strictly disabled in production builds
+  const showDemoLogin = !import.meta.env.PROD && (showDemoOverride !== undefined ? showDemoOverride : true);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -128,39 +131,41 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 border-t border-slate-200 pt-6">
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span>Quick Demo Sign-In</span>
-          </div>
+        {showDemoLogin && (
+          <div className="mt-6 border-t border-slate-200 pt-6" data-testid="demo-login-section">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Quick Demo Sign-In</span>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleQuickLogin('admin@ricozhintel.internal', 'Admin123!')}
-              className="flex flex-col items-center justify-center p-3 border border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 rounded-xl transition-all text-center group cursor-pointer"
-            >
-              <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-brand-700">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
-                <span>Demo Admin</span>
-              </div>
-              <span className="text-[11px] text-slate-500 mt-0.5">Full CRUD Access</span>
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickLogin('admin@ricozhintel.internal', 'Admin123!')}
+                className="flex flex-col items-center justify-center p-3 border border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 rounded-xl transition-all text-center group cursor-pointer"
+              >
+                <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-brand-700">
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Demo Admin</span>
+                </div>
+                <span className="text-[11px] text-slate-500 mt-0.5">Full CRUD Access</span>
+              </button>
 
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleQuickLogin('viewer@ricozhintel.internal', 'Viewer123!')}
-              className="flex flex-col items-center justify-center p-3 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 rounded-xl transition-all text-center group cursor-pointer"
-            >
-              <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
-                <span>Demo Viewer</span>
-              </div>
-              <span className="text-[11px] text-slate-500 mt-0.5">Read & Reports</span>
-            </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickLogin('viewer@ricozhintel.internal', 'Viewer123!')}
+                className="flex flex-col items-center justify-center p-3 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 rounded-xl transition-all text-center group cursor-pointer"
+              >
+                <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
+                  <span>Demo Viewer</span>
+                </div>
+                <span className="text-[11px] text-slate-500 mt-0.5">Read & Reports</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

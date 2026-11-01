@@ -104,6 +104,34 @@ describe('Authentication UI & Session', () => {
         expect(screen.getByText('Invalid email or password')).toBeInTheDocument();
       });
     });
+
+    it('does NOT render demo credentials or quick-login buttons in production environment', () => {
+      vi.stubEnv('PROD', true);
+      try {
+        renderWithProviders(<LoginPage />);
+
+        expect(screen.queryByText(/quick demo sign-in/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /demo admin/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /demo viewer/i })).not.toBeInTheDocument();
+        expect(screen.queryByText(/admin@ricozhintel.internal/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/viewer@ricozhintel.internal/i)).not.toBeInTheDocument();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('renders demo credentials and quick-login controls by default in development environment', () => {
+      vi.stubEnv('PROD', false);
+      try {
+        renderWithProviders(<LoginPage />);
+
+        expect(screen.getByText(/quick demo sign-in/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /demo admin/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /demo viewer/i })).toBeInTheDocument();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
   });
 
   describe('Header component', () => {
