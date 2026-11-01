@@ -5,12 +5,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
-
 import { env } from './config/env.js';
 import apiRoutes from './routes/index.js';
 import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 export const createApp = () => {
   const app = express();
@@ -43,15 +42,7 @@ export const createApp = () => {
   }
 
   // 5. Rate limiting on the API
-  app.use(
-    '/api',
-    rateLimit({
-      windowMs: 60 * 1000,
-      max: 120,
-      standardHeaders: true,
-      legacyHeaders: false,
-    })
-  );
+  app.use('/api', apiLimiter);
 
   // 6. API routes — mounted at /api so both /api/v1/* and /api/health work.
   app.use('/api', apiRoutes);
