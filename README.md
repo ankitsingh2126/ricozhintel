@@ -238,7 +238,24 @@ ricozhintel/
 - **Rate limiting** on `/api` (120 requests per minute per IP, with proxy trust enabled).
 - **Fail-fast environment configuration** — the server refuses to start if
   any required environment variable is missing, and prints which.
-- **Production admin bootstrap:** dedicated `/api/v1/auth/bootstrap-admin` endpoint and CLI script for safe initial setup without seeding demo credentials in production.
+### Production admin bootstrap & CLI provisioning
+
+- **Dedicated HTTP Endpoint (`POST /api/v1/auth/bootstrap-admin`):**
+  - Requires `ADMIN_BOOTSTRAP_SECRET` configured in server environment.
+  - Provisions the initial administrator account with atomic singleton locking (`system_locks`).
+  - Permanently locks down and returns HTTP 403 once an administrator already exists.
+  - Guarded by dedicated rate limiting (`bootstrapAdminLimiter`: 5 attempts / 15 minutes).
+
+- **Hardened CLI Provisioning Script (`npm run admin:provision`):**
+  - Path: `server/src/scripts/provisionAdmin.js`.
+  - **Safe by default:** Creates a new Administrator account only (`role: 'admin'`, `status: 'active'`).
+  - **Refusal Guarantee:** If an account with the supplied email already exists (whether a Viewer or an Admin), the script strictly refuses execution and exits with an error. Existing passwords, roles, names, and account statuses are never overwritten or automatically promoted.
+  - **Secure Password Input:** Reads password from `ADMIN_PASSWORD` environment variable or prompts interactively with hidden input (no terminal echo). Command-line `--password` is discouraged and issues an explicit shell-history security warning.
+  - **Bcrypt Hashing:** Delegates password hashing directly to the Mongoose User schema lifecycle (`bcryptjs` with 10 salt rounds).
+
+- **Emergency Account Recovery Distinction:**
+  - Standard password resets and role adjustments must be performed through the authenticated Admin User Management interface (`/users`) or authorized API (`PATCH /api/v1/users/:id`).
+  - Normal provisioning scripts must never double as silent overwrite tools. In a break-glass scenario where all administrators are locked out, account recovery requires an authorized, audited database-level operation with explicit change approvals.
 - **Demo seed script** — seeded accounts and demo data prefixed with `[DEMO]` for local development.
 
 ### Automated Tests

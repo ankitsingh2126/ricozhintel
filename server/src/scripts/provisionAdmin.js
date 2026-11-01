@@ -1,9 +1,15 @@
+// Production administrator provisioning script.
+// Safe by default: creates a new Administrator account only.
+// If the target email already exists, it strictly refuses to overwrite credentials or elevate privileges.
+
 import readline from 'readline';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 
-const promptPassword = (query) => {
+export const promptPassword = (query) => {
   return new Promise((resolve) => {
     const rl = readline.createInterface({
       input: process.stdin,
@@ -51,28 +57,73 @@ const promptPassword = (query) => {
   });
 };
 
-const parseArgs = () => {
-  const args = process.argv.slice(2);
+export const parseArgs = (argv = process.argv.slice(2)) => {
   const parsed = {};
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--')) {
-      const key = args[i].slice(2);
-      const value = args[i + 1] && !args[i + 1].startsWith('--') ? args[++i] : true;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i].startsWith('--')) {
+      const key = argv[i].slice(2);
+      const value = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true;
       parsed[key] = value;
     }
   }
   return parsed;
 };
 
-const run = async () => {
-  const args = parseArgs();
+/**
+ * Core business logic for provisioning a new administrator account.
+ * Rejects if user with the same email already exists (regardless of role).
+ * Delegates password hashing to Mongoose User schema pre('save') hook.
+ */
+export const provisionAdminAccount = async ({ email, password, name = 'System Administrator' }) => {
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const normalizedName = typeof name === 'string' && name.trim() ? name.trim() : 'System Administrator';
+
+  if (!normalizedEmail) {
+    throw new Error('Email is required (e.g. --email admin@example.com)');
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(normalizedEmail)) {
+    throw new Error('Please provide a valid email address');
+  }
+
+  if (typeof password !== 'string' || password.length === 0) {
+    throw new Error('Password is required');
+  }
+
+  if (password.length < 6) {
+    throw new Error('Password must be at least 6 characters');
+  }
+
+  // Safety check: Never overwrite an existing user or elevate a Viewer automatically
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) {
+    throw new Error(
+      `An account with email "${normalizedEmail}" already exists with role "${existing.role}". Provisioning refused: existing accounts cannot be overwritten or promoted.`
+    );
+  }
+
+  // Create new Administrator account
+  const user = await User.create({
+    name: normalizedName,
+    email: normalizedEmail,
+    password, // pre-save hook hashes with bcrypt (salt rounds = 10)
+    role: 'admin',
+    status: 'active',
+  });
+
+  return user;
+};
+
+export const run = async (argv = process.argv.slice(2), { autoDisconnect = true } = {}) => {
+  const args = parseArgs(argv);
   const email = typeof args.email === 'string' ? args.email.trim().toLowerCase() : '';
   let password = process.env.ADMIN_PASSWORD || '';
   const name = typeof args.name === 'string' ? args.name.trim() : 'System Administrator';
 
   if (!email) {
     console.error('Error: --email is required (e.g. --email admin@example.com)');
-    process.exit(1);
+    return 1;
   }
 
   if (!password && typeof args.password === 'string' && args.password.length > 0) {
@@ -88,41 +139,49 @@ const run = async () => {
 
   if (!password) {
     console.error('Error: Password is required. Set ADMIN_PASSWORD environment variable or enter at the interactive prompt.');
-    process.exit(1);
+    return 1;
   }
 
   if (password.length < 6) {
     console.error('Error: Password must be at least 6 characters.');
-    process.exit(1);
+    return 1;
   }
 
-  try {
-    await mongoose.connect(env.mongoUri);
-    const existing = await User.findOne({ email });
+  const wasAlreadyConnected = mongoose.connection.readyState === 1;
 
-    if (existing) {
-      existing.role = 'admin';
-      existing.password = password; // pre-save hook will hash this securely
-      if (name && (!existing.name || existing.name === 'System Administrator')) {
-        existing.name = name;
-      }
-      await existing.save();
-      console.log(`[admin:provision] Existing user ${email} successfully promoted to administrator.`);
-    } else {
-      await User.create({
-        name,
-        email,
-        password, // pre-save hook will hash this securely
-        role: 'admin',
-      });
-      console.log(`[admin:provision] New administrator ${email} created successfully.`);
+  try {
+    if (!wasAlreadyConnected) {
+      await mongoose.connect(env.mongoUri);
     }
-    await mongoose.disconnect();
-    process.exit(0);
+    const user = await provisionAdminAccount({ email, password, name });
+    console.log(`[admin:provision] New administrator ${user.email} created successfully.`);
+    if (autoDisconnect && !wasAlreadyConnected) {
+      await mongoose.disconnect();
+    }
+    return 0;
   } catch (err) {
     console.error(`[admin:provision] Failed to provision admin: ${err.message}`);
-    process.exit(1);
+    if (autoDisconnect && !wasAlreadyConnected) {
+      await mongoose.disconnect().catch(() => {});
+    }
+    return 1;
   }
 };
 
-run();
+export const isDirectExecution = () => {
+  if (!process.argv[1]) return false;
+  try {
+    return fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+  } catch {
+    return false;
+  }
+};
+
+if (isDirectExecution()) {
+  run().then((code) => {
+    process.exit(code ?? 0);
+  }).catch((err) => {
+    console.error(`[admin:provision] Fatal error: ${err.message}`);
+    process.exit(1);
+  });
+}
